@@ -1,7 +1,6 @@
 package com.ownervortex.nyxrecorder.core.util
 
 import android.app.ActivityManager
-import android.app.ActivityManager
 import android.content.Context
 import android.os.PowerManager
 import java.io.File

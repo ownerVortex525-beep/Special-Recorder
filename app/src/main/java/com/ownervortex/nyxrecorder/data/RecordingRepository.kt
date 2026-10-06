@@ -123,8 +123,6 @@ class RecordingRepository(private val context: Context) {
 
     fun bytesUsed(recordings: List<Recording>): Long = recordings.sumOf { it.sizeBytes }
 
-    fun bytesUsed(recordings: List<Recording>): Long = recordings.sumOf { it.sizeBytes }
-
     private fun resolveDuration(uri: String): Long {
         synchronized(durationLock) {
             durationCache[uri]?.let { return it }

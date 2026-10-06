@@ -324,12 +324,15 @@ class BubbleController(
     private val Int.dp: Int get() = dp()
 
     private fun overlayParams(width: Int, height: Int): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(width, height, overlayType(), PixelFormat.TRANSLUCENT)
-            .apply {
-                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-            }
+        WindowManager.LayoutParams(
+            width,
+            height,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        )
 
     private fun overlayType(): Int =
         if (android.os.Build.VERSION.SDK_INT >= 26)
@@ -390,7 +393,7 @@ class FaceCamView(
     }
 
     fun applyOutline() {
-        outlineProvider = object : OutlineProvider() {
+        outlineProvider = object : View.OutlineProvider() {
             override fun getOutline(view: View, outline: android.graphics.Outline) {
                 outline.setRoundRect(0, 0, view.width, view.height, dp(cornerRadius))
             }
@@ -443,7 +446,7 @@ class FaceCamView(
                                                         android.hardware.camera2.CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
                                                     )
                                                 }
-                                            s.setRepeatingRequest(request, null, null)
+                                            s.setRepeatingRequest(request.build(), null, null)
                                         } catch (_: Exception) {
                                         }
                                     }
