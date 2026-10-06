@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,6 +71,15 @@ fun SettingsScreen(
         )
     }
     var showCrashLog by remember { mutableStateOf(false) }
+    var permTick by remember { mutableIntStateOf(0) }
+
+    val permLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permTick++ }
+
+    fun granted(permission: String): Boolean =
+        androidx.core.content.ContextCompat.checkSelfPermission(context, permission) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -76,6 +88,7 @@ fun SettingsScreen(
                     android.os.Environment.isExternalStorageManager()
                 crashReport =
                     com.ownervortex.nyxrecorder.core.util.CrashLog.read(context)
+                permTick++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -230,44 +243,134 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(14.dp))
         SectionTitle("PERMISSIONS")
-        NixCard(Modifier.fillMaxWidth()) {
-            Column {
-                SettingRow("Music access", subtitle = "Pick background music") {
-                    TextButton(onClick = onRequestMusicPermission) {
-                        Text("Grant", color = NixPrimary, fontWeight = FontWeight.Bold)
-                    }
-                }
-                SettingRow(
+        val permissionRows = remember(permTick) {
+            listOf(
+                PermissionRow(
+                    "Notifications",
+                    "Recording & export alerts",
+                    Build.VERSION.SDK_INT < 33 ||
+                        granted(android.Manifest.permission.POST_NOTIFICATIONS),
+                    { permLauncher.launch(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS)) }
+                ),
+                PermissionRow(
                     "Display over apps",
-                    subtitle = "Required for the control bubble"
-                ) {
-                    TextButton(onClick = {
+                    "Required for the control bubble",
+                    android.provider.Settings.canDrawOverlays(context),
+                    {
                         try {
-                            val intent = Intent(
-                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:${context.packageName}")
+                            context.startActivity(
+                                Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    Uri.parse("package:${context.packageName}")
+                                )
                             )
-                            context.startActivity(intent)
                         } catch (_: Exception) {
                         }
-                    }) {
-                        Text("Open", color = NixPrimary, fontWeight = FontWeight.Bold)
-                    }
-                }
-                if (Build.VERSION.SDK_INT >= 23) {
-                    SettingRow("Modify system settings", subtitle = "For the touch indicator") {
-                        TextButton(onClick = {
-                            try {
-                                val intent = Intent(
+                    },
+                    grantLabel = "Open"
+                ),
+                PermissionRow(
+                    "Music & audio",
+                    "Pick background music",
+                    if (Build.VERSION.SDK_INT >= 33) granted(android.Manifest.permission.READ_MEDIA_AUDIO)
+                    else granted(android.Manifest.permission.READ_EXTERNAL_STORAGE),
+                    { onRequestMusicPermission() }
+                ),
+                PermissionRow(
+                    "Microphone",
+                    "Record your voice",
+                    granted(android.Manifest.permission.RECORD_AUDIO),
+                    { permLauncher.launch(arrayOf(android.Manifest.permission.RECORD_AUDIO)) }
+                ),
+                PermissionRow(
+                    "Camera",
+                    "Face cam window",
+                    granted(android.Manifest.permission.CAMERA),
+                    { permLauncher.launch(arrayOf(android.Manifest.permission.CAMERA)) }
+                ),
+                PermissionRow(
+                    "Modify system settings",
+                    "For the touch indicator",
+                    Build.VERSION.SDK_INT < 23 ||
+                        android.provider.Settings.System.canWrite(context),
+                    {
+                        try {
+                            context.startActivity(
+                                Intent(
                                     Settings.ACTION_MANAGE_WRITE_SETTINGS,
                                     Uri.parse("package:${context.packageName}")
                                 )
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                            }
-                        }) {
-                            Text("Open", color = NixPrimary, fontWeight = FontWeight.Bold)
+                            )
+                        } catch (_: Exception) {
                         }
+                    },
+                    grantLabel = "Open"
+                )
+            )
+        }
+        val allPermsGranted = permissionRows.all { it.granted }
+        NixCard(Modifier.fillMaxWidth()) {
+            Column {
+                if (allPermsGranted) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "✓",
+                            color = NixAccent, fontSize = 16.sp, fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "All permissions granted",
+                            color = NixAccent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+                permissionRows.forEachIndexed { index, row ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                row.title,
+                                color = NixText, fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                row.subtitle,
+                                color = NixTextDim, fontSize = 11.sp,
+                                modifier = Modifier.padding(top = 1.dp)
+                            )
+                        }
+                        if (row.granted) {
+                            Text(
+                                "✓ Granted",
+                                color = NixAccent, fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            TextButton(onClick = row.action) {
+                                Text(
+                                    row.grantLabel,
+                                    color = NixPrimary, fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    if (index != permissionRows.lastIndex) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .height(1.dp)
+                                .background(NixStroke)
+                        )
                     }
                 }
             }
@@ -426,3 +529,11 @@ private fun ToggleSetting(
         )
     }
 }
+
+private data class PermissionRow(
+    val title: String,
+    val subtitle: String,
+    val granted: Boolean,
+    val action: () -> Unit,
+    val grantLabel: String = "Grant"
+)

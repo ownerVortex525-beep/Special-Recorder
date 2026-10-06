@@ -58,7 +58,9 @@ import com.ownervortex.nyxrecorder.ui.screens.EditorScreen
 import com.ownervortex.nyxrecorder.ui.screens.HomeScreen
 import com.ownervortex.nyxrecorder.ui.screens.LibraryScreen
 import com.ownervortex.nyxrecorder.ui.screens.MusicScreen
+import com.ownervortex.nyxrecorder.ui.screens.PermissionHub
 import com.ownervortex.nyxrecorder.ui.screens.PlayerScreen
+import com.ownervortex.nyxrecorder.ui.screens.RecordOptionsSheet
 import com.ownervortex.nyxrecorder.ui.screens.SettingsScreen
 import com.ownervortex.nyxrecorder.ui.theme.NixBackground
 import com.ownervortex.nyxrecorder.ui.theme.NixPrimary
@@ -106,6 +108,8 @@ fun AppRoot() {
 
     var pendingOverlayCheck by remember { mutableStateOf(false) }
     var hintedAllFiles by remember { mutableStateOf(false) }
+    var showPermissionHub by remember { mutableStateOf(SettingsStore.firstRun) }
+    var recordSheet by remember { mutableStateOf(false) }
 
     // --------------------------------------------------------- launchers
 
@@ -359,7 +363,7 @@ fun AppRoot() {
                             deviceAudioOn = settings.recordDeviceAudio,
                             bubbleOn = settings.showBubble,
                             freeSpaceLabel = freeSpaceLabel(context),
-                            onRecord = { requestStart() },
+                            onRecord = { recordSheet = true },
                             onPauseToggle = {
                                 if (status.isPaused) RecordingController.resume(context)
                                 else RecordingController.pause(context)
@@ -414,6 +418,29 @@ fun AppRoot() {
                     }
                 }
             }
+        }
+
+        if (showPermissionHub) {
+            PermissionHub(
+                onDone = {
+                    SettingsStore.firstRun = false
+                    showPermissionHub = false
+                }
+            )
+        } else if (recordSheet) {
+            RecordOptionsSheet(
+                settings = settings,
+                viewModel = settingsViewModel,
+                onDismiss = { recordSheet = false },
+                onStart = {
+                    recordSheet = false
+                    requestStart()
+                },
+                onOpenMusic = {
+                    recordSheet = false
+                    tab = 2
+                }
+            )
         }
     }
 }
