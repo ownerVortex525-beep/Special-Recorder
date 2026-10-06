@@ -27,6 +27,8 @@ data class SettingsUi(
     val recordMic: Boolean = false,
     val recordDeviceAudio: Boolean = false,
     val showBubble: Boolean = true,
+    val bubbleSize: Int = 1,
+    val bubbleOpacity: Float = 0.5f,
     val countdown: Boolean = true,
     val faceCam: Boolean = false,
     val touchIndicator: Boolean = false,
@@ -45,6 +47,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         recordMic = SettingsStore.recordMic,
         recordDeviceAudio = SettingsStore.recordDeviceAudio,
         showBubble = SettingsStore.showBubble,
+        bubbleSize = SettingsStore.bubbleSize,
+        bubbleOpacity = SettingsStore.bubbleOpacity,
         countdown = SettingsStore.countdown,
         faceCam = SettingsStore.faceCam,
         touchIndicator = SettingsStore.touchIndicator,
@@ -70,6 +74,16 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setBubble(enabled: Boolean) {
         SettingsStore.showBubble = enabled
+        refresh()
+    }
+
+    fun setBubbleSize(index: Int) {
+        SettingsStore.bubbleSize = index
+        refresh()
+    }
+
+    fun setBubbleOpacity(value: Float) {
+        SettingsStore.bubbleOpacity = value
         refresh()
     }
 

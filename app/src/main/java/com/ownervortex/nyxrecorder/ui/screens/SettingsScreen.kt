@@ -174,6 +174,60 @@ fun SettingsScreen(
             }
         }
 
+        Spacer(Modifier.height(12.dp))
+        NixCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    "Floating bubble",
+                    color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Size and on-screen opacity — applies to the next recording",
+                    color = NixTextDim, fontSize = 12.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Size", color = NixText, fontSize = 14.sp)
+                    Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                        listOf("S", "M", "L").forEachIndexed { index, label ->
+                            NixChip(
+                                label = label,
+                                selected = state.bubbleSize == index,
+                                onClick = { viewModel.setBubbleSize(index) }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Opacity", color = NixText, fontSize = 14.sp)
+                    Text(
+                        "${(state.bubbleOpacity * 100).toInt()}%",
+                        color = NixAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+                androidx.compose.material3.Slider(
+                    value = state.bubbleOpacity,
+                    onValueChange = { viewModel.setBubbleOpacity(it) },
+                    valueRange = 0.10f..1f,
+                    colors = androidx.compose.material3.SliderDefaults.colors(
+                        thumbColor = NixPrimary,
+                        activeTrackColor = NixPrimary,
+                        inactiveTrackColor = NixSurfaceHigh
+                    )
+                )
+            }
+        }
+
         Spacer(Modifier.height(14.dp))
         SectionTitle("PERMISSIONS")
         NixCard(Modifier.fillMaxWidth()) {

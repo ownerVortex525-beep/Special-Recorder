@@ -230,33 +230,63 @@ class ScreenCaptureService : Service() {
         startTicker()
         scheduleMuxerFallback()
 
-        if (cfg.showBubble && android.provider.Settings.canDrawOverlays(this)) {
+        if (cfg.showBubble) {
             try {
-                bubble = BubbleController(
+                val controller = BubbleController(
                     this,
                     cfg.faceCam,
                     cfg.musicUri != null,
                     onMusicToggle = {
                         audioEncoder?.toggleMusicPause()
+                        bubble?.setMusicPaused(audioEncoder?.isMusicPaused() ?: false)
                         pushNotification()
                     },
                     onMusicStop = {
                         audioEncoder?.stopMusic()
+                        bubble?.hideMusicControls()
                         pushNotification()
                     },
                     onMusicForward = { audioEncoder?.forwardMusic() }
-                ).also {
-                    it.show(
-                        onPauseToggle = {
-                            if (paused) RecordingController.resume(this)
-                            else RecordingController.pause(this)
-                        },
-                        onStop = { RecordingController.stop(this) },
-                        onHide = { hideBubble() }
-                    )
+                )
+                val ok = controller.show(
+                    onPauseToggle = {
+                        if (paused) RecordingController.resume(this)
+                        else RecordingController.pause(this)
+                    },
+                    onStop = { RecordingController.stop(this) },
+                    onHide = { hideBubble() }
+                )
+                if (ok) {
+                    bubble = controller
+                } else {
+                    notifyBubbleBlocked()
                 }
             } catch (_: Exception) {
             }
+        }
+    }
+
+    /** Overlay permission missing: tell the user instead of failing silently. */
+    private fun notifyBubbleBlocked() {
+        try {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            val pending = PendingIntent.getActivity(
+                this, 3, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification = NotificationCompat.Builder(this, Constants.RECORDING_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_record)
+                .setContentTitle("Floating bubble blocked")
+                .setContentText("Tap to allow “Display over apps” so controls can appear")
+                .setContentIntent(pending)
+                .setAutoCancel(true)
+                .setColor(0xFF6C63FF.toInt())
+                .build()
+            getSystemService(NotificationManager::class.java)?.notify(4201, notification)
+        } catch (_: Exception) {
         }
     }
 

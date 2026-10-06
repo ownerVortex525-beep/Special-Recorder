@@ -9,6 +9,8 @@ object SettingsStore {
     private const val KEY_MIC = "record_mic"
     private const val KEY_DEVICE_AUDIO = "record_device_audio"
     private const val KEY_BUBBLE = "show_bubble"
+    private const val KEY_BUBBLE_SIZE = "bubble_size"
+    private const val KEY_BUBBLE_OPACITY = "bubble_opacity"
     private const val KEY_COUNTDOWN = "countdown"
     private const val KEY_FACE_CAM = "face_cam"
     private const val KEY_TOUCH = "touch_indicator"
@@ -41,6 +43,16 @@ object SettingsStore {
     var showBubble: Boolean
         get() = prefs.getBoolean(KEY_BUBBLE, true)
         set(value) = prefs.edit().putBoolean(KEY_BUBBLE, value).apply()
+
+    /** 0 = Small (48dp), 1 = Medium (64dp), 2 = Large (80dp). */
+    var bubbleSize: Int
+        get() = prefs.getInt(KEY_BUBBLE_SIZE, 1).coerceIn(0, 2)
+        set(value) = prefs.edit().putInt(KEY_BUBBLE_SIZE, value.coerceIn(0, 2)).apply()
+
+    /** On-screen dim opacity of the bubble while recording (0.10 … 1.0). */
+    var bubbleOpacity: Float
+        get() = prefs.getFloat(KEY_BUBBLE_OPACITY, 0.5f).coerceIn(0.1f, 1f)
+        set(value) = prefs.edit().putFloat(KEY_BUBBLE_OPACITY, value.coerceIn(0.1f, 1f)).apply()
 
     var countdown: Boolean
         get() = prefs.getBoolean(KEY_COUNTDOWN, true)

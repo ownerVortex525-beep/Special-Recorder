@@ -20,17 +20,19 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.ownervortex.nyxrecorder.R
+import com.ownervortex.nyxrecorder.data.SettingsStore
 import kotlin.math.abs
 import kotlin.math.max
 
 /**
  * Floating recording controls.
  *
- * The bubble window used to be [WindowManager.LayoutParams.FLAG_SECURE], which makes
- * MediaProjection render it as a **black rectangle** in the recording. It is now
- * drawn without FLAG_SECURE and kept at ~20% window alpha so it is almost
- * invisible in footage; when opened (clicked) it animates to full contrast for a
- * comfortable tap target, then fades back to 20%.
+ * The bubble window used FLAG_SECURE, which makes MediaProjection render it as a
+ * **black rectangle** in the recording. It is now drawn without FLAG_SECURE at a
+ * user-configurable dim opacity (Settings → Bubble opacity, default 50%) so it
+ * stays subtle in footage but visible and tappable on screen; when opened it
+ * animates to full contrast, then fades back. Size is configurable too
+ * (Settings → Bubble size).
  *
  * FaceCam is a separate window, always visible in recordings, with rounded
  * corners and a corrected mirror/rotation.
@@ -60,24 +62,45 @@ class BubbleController(
     private var paused = false
     private var panelOpen = false
     private var shown = false
+    private var musicPaused = false
+    private var musicHidden = false
 
     private var timeText: TextView? = null
+    private var musicPlayPause: TextView? = null
 
     private fun Int.dp(): Int = (this * context.resources.displayMetrics.density).toInt()
 
+    /** Configured bubble diameter in dp (Small 48 / Medium 64 / Large 80). */
+    private val bubbleSizeDp: Int
+        get() = when (SettingsStore.bubbleSize) {
+            0 -> 48
+            2 -> 80
+            else -> 64
+        }
+
+    /** On-screen dim opacity while recording (user-configurable, default 50%). */
+    private val dimmedAlpha: Float
+        get() = SettingsStore.bubbleOpacity.coerceIn(0.10f, 1f)
+
+    /**
+     * Adds the floating bubble. Returns false when the overlay permission is
+     * missing or adding the window failed, so the caller can tell the user
+     * instead of the bubble silently never appearing.
+     */
     fun show(
         onPauseToggle: () -> Unit,
         onStop: () -> Unit,
         onHide: () -> Unit
-    ) {
-        if (shown) return
-        if (!Settings.canDrawOverlays(context)) return
+    ): Boolean {
+        if (shown) return true
+        if (!Settings.canDrawOverlays(context)) return false
         this.onPauseToggle = onPauseToggle
         this.onStop = onStop
         this.onHide = onHide
         shown = true
         addBubble()
         if (faceCamEnabled) showFaceCam()
+        return shown
     }
 
     @SuppressLint("ClickableViewAccessibility", "InflateParams")
@@ -86,11 +109,15 @@ class BubbleController(
         bubbleView = view
         timeText = view.findViewById(R.id.bubbleTime)
 
-        val params = overlayParams(view.width.takeIf { it > 0 } ?: 64.dp(), 64.dp()).apply {
+        val size = bubbleSizeDp.dp()
+        val screenW = context.resources.displayMetrics.widthPixels
+        val screenH = context.resources.displayMetrics.heightPixels
+
+        val params = overlayParams(size, size).apply {
             gravity = Gravity.TOP or Gravity.START
             x = 16.dp()
             y = 220.dp()
-            alpha = DIMMED_ALPHA
+            alpha = dimmedAlpha
         }
         bubbleParams = params
 
@@ -116,8 +143,10 @@ class BubbleController(
                     val dy = event.rawY - downY
                     if (!dragging && (abs(dx) > 8 || abs(dy) > 8)) dragging = true
                     if (dragging) {
-                        params.x = max(0, startX + dx.toInt())
-                        params.y = max(0, startY + dy.toInt())
+                        val maxX = (screenW - params.width).coerceAtLeast(0)
+                        val maxY = (screenH - params.height).coerceAtLeast(0)
+                        params.x = (startX + dx.toInt()).coerceIn(0, maxX)
+                        params.y = (startY + dy.toInt()).coerceIn(0, maxY)
                         try {
                             windowManager.updateViewLayout(view, params)
                         } catch (_: Exception) {
@@ -172,9 +201,11 @@ class BubbleController(
 
         pauseBtn.setOnClickListener { togglePause() }
 
-        if (musicSelected && onMusicToggle != null) {
+        if (musicSelected && onMusicToggle != null && !musicHidden) {
             val musicRow = LayoutInflater.from(context).inflate(R.layout.view_bubble_music_row, null)
-            musicRow.findViewById<View>(R.id.musicPlayPause).setOnClickListener { onMusicToggle?.invoke() }
+            musicPlayPause = musicRow.findViewById(R.id.musicPlayPause)
+            updateMusicLabel()
+            musicPlayPause?.setOnClickListener { onMusicToggle?.invoke() }
             musicRow.findViewById<View>(R.id.musicStop).setOnClickListener { onMusicStop?.invoke() }
             musicRow.findViewById<View>(R.id.musicForward).setOnClickListener { onMusicForward?.invoke() }
             val container = panel.findViewById<LinearLayout>(R.id.panelMusicSlot)
@@ -204,7 +235,7 @@ class BubbleController(
             gravity = Gravity.TOP or Gravity.START
             x = bp.x.coerceAtMost((screenW - estWidth).coerceAtLeast(0))
             // Place below the bubble; if not enough room, place above.
-            val bubbleBottom = bp.y + 64.dp()
+            val bubbleBottom = bp.y + bubbleSizeDp.dp()
             val screenH = context.resources.displayMetrics.heightPixels
             y = if (bubbleBottom + 180.dp() > screenH) max(0, bp.y - 180.dp()) else bubbleBottom + 4.dp()
             alpha = FULL_ALPHA
@@ -246,9 +277,32 @@ class BubbleController(
         btn.text = if (paused) "▶ Resume" else "❚❚ Pause"
     }
 
+    private fun updateMusicLabel() {
+        musicPlayPause?.text = if (musicPaused) "▶" else "❚❚"
+    }
+
+    /** Keeps the panel's play/pause glyph in sync with the encoder state. */
+    fun setMusicPaused(paused: Boolean) {
+        musicPaused = paused
+        postToMain { updateMusicLabel() }
+    }
+
+    /** Hides the music row once music has been stopped for this recording. */
+    fun hideMusicControls() {
+        musicHidden = true
+        postToMain {
+            musicPlayPause = null
+            panelView?.findViewById<LinearLayout>(R.id.panelMusicSlot)
+                ?.let { slot ->
+                    slot.removeAllViews()
+                    slot.visibility = View.GONE
+                }
+        }
+    }
+
     private fun setDim(dimmed: Boolean) {
         bubbleParams?.let { p ->
-            val target = if (dimmed) DIMMED_ALPHA else FULL_ALPHA
+            val target = if (dimmed) dimmedAlpha else FULL_ALPHA
             if (p.alpha != target) {
                 p.alpha = target
                 bubbleView?.let { windowManager.updateViewLayout(it, p) }
@@ -349,7 +403,6 @@ class BubbleController(
     }
 
     companion object {
-        const val DIMMED_ALPHA = 0.20f
         const val FULL_ALPHA = 1.0f
     }
 }
