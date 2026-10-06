@@ -19,6 +19,7 @@ object SettingsStore {
     private const val KEY_MUSIC_TITLE = "music_title"
     private const val KEY_FAVORITES = "favorites"
     private const val KEY_FIRST_RUN = "first_run"
+    private const val KEY_THEME = "theme_index"
 
     private lateinit var prefs: SharedPreferences
 
@@ -81,6 +82,11 @@ object SettingsStore {
     var firstRun: Boolean
         get() = prefs.getBoolean(KEY_FIRST_RUN, true)
         set(value) = prefs.edit().putBoolean(KEY_FIRST_RUN, value).apply()
+
+    /** Index into [com.ownervortex.nyxrecorder.ui.theme.THEME_NAMES]. */
+    var themeIndex: Int
+        get() = prefs.getInt(KEY_THEME, 0)
+        set(value) = prefs.edit().putInt(KEY_THEME, value).apply()
 
     fun favorites(): Set<String> = prefs.getStringSet(KEY_FAVORITES, emptySet()) ?: emptySet()
 

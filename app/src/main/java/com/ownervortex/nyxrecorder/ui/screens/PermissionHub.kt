@@ -143,46 +143,48 @@ fun PermissionHub(onDone: () -> Unit) {
     }
 
     val rows = remember(refreshTick) {
-        HubRow(
-            "notifications", "Notifications",
-            "Recording & export alerts",
-            notificationsGranted()
-        ) { runtimeLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS)) },
-        HubRow(
-            "overlay", "Display over apps",
-            "Floating control bubble",
-            overlayGranted(),
-            ::openOverlay
-        ),
-        HubRow(
-            "music", "Music & audio",
-            "Pick background music",
-            musicGranted()
-        ) {
-            runtimeLauncher.launch(
-                arrayOf(
-                    if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
-                    else Manifest.permission.READ_EXTERNAL_STORAGE
+        listOf(
+            HubRow(
+                "notifications", "Notifications",
+                "Recording & export alerts",
+                notificationsGranted()
+            ) { runtimeLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS)) },
+            HubRow(
+                "overlay", "Display over apps",
+                "Floating control bubble",
+                overlayGranted(),
+                ::openOverlay
+            ),
+            HubRow(
+                "music", "Music & audio",
+                "Pick background music",
+                musicGranted()
+            ) {
+                runtimeLauncher.launch(
+                    arrayOf(
+                        if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
+                        else Manifest.permission.READ_EXTERNAL_STORAGE
+                    )
                 )
+            },
+            HubRow(
+                "mic", "Microphone",
+                "Record your voice",
+                check(Manifest.permission.RECORD_AUDIO)
+            ) { runtimeLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO)) },
+            HubRow(
+                "camera", "Camera",
+                "Face cam overlay",
+                check(Manifest.permission.CAMERA)
+            ) { runtimeLauncher.launch(arrayOf(Manifest.permission.CAMERA)) },
+            HubRow(
+                "allfiles", "All files access",
+                "Save straight to /NYX Recorder (optional)",
+                allFilesGranted(),
+                ::openAllFiles
             )
-        },
-        HubRow(
-            "mic", "Microphone",
-            "Record your voice",
-            check(Manifest.permission.RECORD_AUDIO)
-        ) { runtimeLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO)) },
-        HubRow(
-            "camera", "Camera",
-            "Face cam overlay",
-            check(Manifest.permission.CAMERA)
-        ) { runtimeLauncher.launch(arrayOf(Manifest.permission.CAMERA)) },
-        HubRow(
-            "allfiles", "All files access",
-            "Save straight to /NYX Recorder (optional)",
-            allFilesGranted(),
-            ::openAllFiles
         )
-    ) }
+    }
     val allGranted = rows.all { it.granted }
 
     Column(

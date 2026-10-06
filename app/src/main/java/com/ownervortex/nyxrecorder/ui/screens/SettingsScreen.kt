@@ -242,6 +242,43 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(14.dp))
+        SectionTitle("APPEARANCE")
+        NixCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    "Theme",
+                    color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Switches instantly and everywhere in the app",
+                    color = NixTextDim, fontSize = 12.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    com.ownervortex.nyxrecorder.ui.theme.THEME_NAMES.take(3).forEachIndexed { index, name ->
+                        NixChip(
+                            label = name,
+                            selected = state.themeIndex == index,
+                            onClick = { viewModel.setTheme(index) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    com.ownervortex.nyxrecorder.ui.theme.THEME_NAMES.drop(3).forEachIndexed { offset, name ->
+                        val index = offset + 3
+                        NixChip(
+                            label = name,
+                            selected = state.themeIndex == index,
+                            onClick = { viewModel.setTheme(index) }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
         SectionTitle("PERMISSIONS")
         val permissionRows = remember(permTick) {
             listOf(

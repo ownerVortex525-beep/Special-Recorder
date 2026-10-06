@@ -12,6 +12,7 @@ class NixApp : Application() {
     override fun onCreate() {
         super.onCreate()
         SettingsStore.init(this)
+        com.ownervortex.nyxrecorder.ui.theme.setNixPalette(SettingsStore.themeIndex)
         CrashLog.install(this)
         createChannels()
     }

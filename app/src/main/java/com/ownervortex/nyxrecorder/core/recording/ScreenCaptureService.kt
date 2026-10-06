@@ -29,6 +29,7 @@ import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.graphics.toArgb
 import com.ownervortex.nyxrecorder.MainActivity
 import com.ownervortex.nyxrecorder.R
 import com.ownervortex.nyxrecorder.core.overlay.BubbleController
@@ -667,7 +668,7 @@ class ScreenCaptureService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
-            .setColor(0xFF6C63FF.toInt())
+            .setColor(com.ownervortex.nyxrecorder.ui.theme.NixPrimary.toArgb())
         if (paused) {
             builder.addAction(
                 R.drawable.ic_stat_play,

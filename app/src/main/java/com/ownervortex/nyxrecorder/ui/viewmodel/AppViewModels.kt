@@ -34,7 +34,8 @@ data class SettingsUi(
     val touchIndicator: Boolean = false,
     val musicVolume: Float = 0.7f,
     val musicUri: String? = null,
-    val musicTitle: String? = null
+    val musicTitle: String? = null,
+    val themeIndex: Int = 0
 )
 
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
@@ -54,7 +55,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         touchIndicator = SettingsStore.touchIndicator,
         musicVolume = SettingsStore.musicVolume,
         musicUri = SettingsStore.musicUri,
-        musicTitle = SettingsStore.musicTitle
+        musicTitle = SettingsStore.musicTitle,
+        themeIndex = SettingsStore.themeIndex
     )
 
     fun setQuality(index: Int) {
@@ -99,6 +101,12 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setTouchIndicator(enabled: Boolean) {
         SettingsStore.touchIndicator = enabled
+        refresh()
+    }
+
+    fun setTheme(index: Int) {
+        SettingsStore.themeIndex = index
+        com.ownervortex.nyxrecorder.ui.theme.setNixPalette(index)
         refresh()
     }
 
