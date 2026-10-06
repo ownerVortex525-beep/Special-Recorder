@@ -1,8 +1,19 @@
 <resources>
+    <style name="Theme.NyxRecorder.Splash" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">#0D0F12</item>
+        <item name="android:navigationBarColor">#0D0F12</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
     <style name="Theme.NyxRecorder" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">#0D0F12</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:resizeableActivity">true</item>
     </style>
 </resources>

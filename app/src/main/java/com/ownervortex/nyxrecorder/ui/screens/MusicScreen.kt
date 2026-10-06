@@ -1,5 +1,7 @@
 package com.ownervortex.nyxrecorder.ui.screens
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,23 +24,31 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ownervortex.nyxrecorder.core.util.DeviceHealth
+import com.ownervortex.nyxrecorder.data.MusicArt
 import com.ownervortex.nyxrecorder.ui.components.AccentBar
 import com.ownervortex.nyxrecorder.ui.components.EmptyState
 import com.ownervortex.nyxrecorder.ui.components.NixCard
@@ -51,6 +61,8 @@ import com.ownervortex.nyxrecorder.ui.theme.NixText
 import com.ownervortex.nyxrecorder.ui.theme.NixTextDim
 import com.ownervortex.nyxrecorder.ui.viewmodel.MusicViewModel
 import com.ownervortex.nyxrecorder.ui.viewmodel.SettingsViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MusicScreen(
@@ -60,10 +72,18 @@ fun MusicScreen(
     val tracks by musicViewModel.tracks.collectAsState()
     val loading by musicViewModel.loading.collectAsState()
     val selected by musicViewModel.selected.collectAsState()
+    val previewUri by musicViewModel.previewUri.collectAsState()
+    val previewPlaying by musicViewModel.previewPlaying.collectAsState()
     val settings by settingsViewModel.state.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         if (musicViewModel.hasPermission()) musicViewModel.load()
+    }
+
+    // Preview stops as soon as the user leaves this screen.
+    DisposableEffect(Unit) {
+        onDispose { musicViewModel.stopPreview() }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -139,6 +159,12 @@ fun MusicScreen(
             ) {
                 items(tracks, key = { it.id }) { track ->
                     val isSelected = track.uri == selected
+                    val isPreviewing = previewUri == track.uri
+                    val art by produceState<Bitmap?>(null, track.uri) {
+                        value = withContext(Dispatchers.IO) {
+                            MusicArt.get(context, track.uri)
+                        }
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -149,7 +175,10 @@ fun MusicScreen(
                                 if (isSelected) NixPrimary else NixStroke,
                                 RoundedCornerShape(14.dp)
                             )
-                            .clickable { musicViewModel.select(if (isSelected) null else track) }
+                            .clickable {
+                                if (!isSelected) musicViewModel.select(track)
+                                musicViewModel.togglePreview(track)
+                            }
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -160,12 +189,22 @@ fun MusicScreen(
                                 .background(if (isSelected) NixPrimary else NixStroke),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Filled.MusicNote,
-                                contentDescription = null,
-                                tint = NixText,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            val bmp = art
+                            if (bmp != null) {
+                                Image(
+                                    bitmap = bmp.asImageBitmap(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Filled.MusicNote,
+                                    contentDescription = null,
+                                    tint = NixText,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -183,8 +222,17 @@ fun MusicScreen(
                                 maxLines = 1
                             )
                         }
-                        if (isSelected) {
-                            Icon(Icons.Filled.CheckCircle, "Selected", tint = NixPrimary)
+                        when {
+                            isPreviewing -> Icon(
+                                if (previewPlaying) Icons.Filled.Pause
+                                else Icons.Filled.PlayArrow,
+                                contentDescription = "Preview",
+                                tint = NixAccent
+                            )
+                            isSelected -> Icon(
+                                Icons.Filled.CheckCircle, "Selected", tint = NixPrimary
+                            )
+                            else -> Spacer(Modifier.width(24.dp))
                         }
                     }
                 }

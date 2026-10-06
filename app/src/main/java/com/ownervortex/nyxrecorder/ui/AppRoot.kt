@@ -105,6 +105,7 @@ fun AppRoot() {
     val scope = rememberCoroutineScope()
 
     var pendingOverlayCheck by remember { mutableStateOf(false) }
+    var hintedAllFiles by remember { mutableStateOf(false) }
 
     // --------------------------------------------------------- launchers
 
@@ -174,6 +175,7 @@ fun AppRoot() {
 
     fun requestStart() {
         if (status.isRecording) return
+        musicViewModel.stopPreview()
         if (DeviceHealth.lowStorage(context)) {
             scope.launch { snackbarHostState.showSnackbar("Not enough free storage to record") }
             return
@@ -196,10 +198,23 @@ fun AppRoot() {
             return
         }
 
+        if (Build.VERSION.SDK_INT >= 30 &&
+            !com.ownervortex.nyxrecorder.core.util.StoragePaths.hasAllFilesAccess(context) &&
+            !hintedAllFiles
+        ) {
+            hintedAllFiles = true
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    "Saving to Movies/NYX Recorder — grant All files access in Settings to save to /NYX Recorder"
+                )
+            }
+        }
+
         val needed = mutableListOf<String>()
         if (settings.recordMic || settings.recordDeviceAudio) needed += Manifest.permission.RECORD_AUDIO
         if (settings.faceCam) needed += Manifest.permission.CAMERA
         if (Build.VERSION.SDK_INT >= 33) needed += Manifest.permission.POST_NOTIFICATIONS
+        if (Build.VERSION.SDK_INT < 29) needed += Manifest.permission.WRITE_EXTERNAL_STORAGE
 
         val missing = needed.filter {
             ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
@@ -302,7 +317,7 @@ fun AppRoot() {
                             },
                             onExported = {
                                 snackbarHostState.let { host ->
-                                    scope.launch { host.showSnackbar("Export saved to Movies/NYXRecorder") }
+                                    scope.launch { host.showSnackbar("Export saved to NYX Recorder") }
                                 }
                                 editorViewModel.consumeDone()
                                 editorTarget = null

@@ -19,8 +19,12 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +54,24 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+
+    var allFilesGranted by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT >= 30 &&
+                android.os.Environment.isExternalStorageManager()
+        )
+    }
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                allFilesGranted = Build.VERSION.SDK_INT >= 30 &&
+                    android.os.Environment.isExternalStorageManager()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Column(
         Modifier
@@ -197,8 +219,32 @@ fun SettingsScreen(
                 }
                 SettingRow(
                     "Output folder",
-                    subtitle = "Movies/NYXRecorder"
-                ) {}
+                    subtitle = if (allFilesGranted)
+                        "/storage/emulated/0/NYX Recorder"
+                    else
+                        "Movies/NYX Recorder (fallback)"
+                ) {
+                    if (Build.VERSION.SDK_INT >= 30 && !allFilesGranted) {
+                        TextButton(onClick = {
+                            try {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                        Uri.parse("package:${context.packageName}")
+                                    )
+                                )
+                            } catch (_: Exception) {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
+                                    )
+                                )
+                            }
+                        }) {
+                            Text("Grant", color = NixPrimary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
 
@@ -218,7 +264,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Recordings are saved only on this device, in Movies/NYXRecorder. " +
+                    "Recordings are saved only on this device, in NYX Recorder. " +
                         "Nothing is uploaded anywhere.",
                     color = NixTextDim, fontSize = 12.sp
                 )

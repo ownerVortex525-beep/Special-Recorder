@@ -64,6 +64,36 @@ class AudioMixerEncoder(
     private var lastWrittenRaw = Long.MIN_VALUE
     private var discarding = false
 
+    // ------------------------------------------------------------- music controls
+    @Volatile private var musicPaused = false
+    @Volatile private var musicStopped = false
+    @Volatile private var musicForwardReq = false
+    @Volatile private var musicQueue: LinkedBlockingQueue<ByteArray>? = null
+
+    /** True while a music source was selected for this recording. */
+    val hasMusic: Boolean get() = musicUri != null
+
+    fun isMusicPaused(): Boolean = musicPaused
+
+    /** Pause/resume the background music (notification + bubble controls). */
+    fun toggleMusicPause() {
+        if (musicStopped) return
+        musicPaused = !musicPaused
+        if (musicPaused) musicQueue?.clear()
+    }
+
+    /** Stop the background music for the rest of the recording. */
+    fun stopMusic() {
+        musicStopped = true
+        musicPaused = false
+        musicQueue?.clear()
+    }
+
+    /** Seek the background music forward by 10 seconds (loops if past the end). */
+    fun forwardMusic() {
+        musicForwardReq = true
+    }
+
     val isPaused: Boolean
         get() = paused
 
@@ -291,16 +321,35 @@ class AudioMixerEncoder(
     }
 
     private fun musicLoop(uriStr: String, queue: LinkedBlockingQueue<ByteArray>) {
+        musicQueue = queue
+        try {
+            if (!waitUntilRunning()) return
+            // Starts at 0:00 when recording begins and replays forever until the
+            // recording stops (or the user stops the music from the notification
+            // / bubble panel).
+            while (running && !musicStopped) {
+                if (!decodeMusicPass(uriStr, queue)) break
+            }
+        } finally {
+            musicQueue = null
+        }
+    }
+
+    /** One pass over the file. Returns true to restart from the beginning. */
+    private fun decodeMusicPass(
+        uriStr: String,
+        queue: LinkedBlockingQueue<ByteArray>
+    ): Boolean {
         var extractor: MediaExtractor? = null
         var decoder: MediaCodec? = null
         try {
-            if (!waitUntilRunning()) return
-            extractor = MediaExtractor()
-            extractor.setDataSource(context, Uri.parse(uriStr), null)
+            val ex = MediaExtractor()
+            extractor = ex
+            ex.setDataSource(context, Uri.parse(uriStr), null)
             var trackIndex = -1
             var mime: String? = null
-            for (i in 0 until extractor.trackCount) {
-                val format = extractor.getTrackFormat(i)
+            for (i in 0 until ex.trackCount) {
+                val format = ex.getTrackFormat(i)
                 val m = format.getString(MediaFormat.KEY_MIME)
                 if (m != null && m.startsWith("audio/")) {
                     trackIndex = i
@@ -308,44 +357,61 @@ class AudioMixerEncoder(
                     break
                 }
             }
-            if (trackIndex < 0 || mime == null) return
-            extractor.selectTrack(trackIndex)
-            val trackFormat = extractor.getTrackFormat(trackIndex)
+            if (trackIndex < 0 || mime == null) return false
+            ex.selectTrack(trackIndex)
+            val trackFormat = ex.getTrackFormat(trackIndex)
             val srcRate = trackFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
             val srcChannels = trackFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-            decoder = MediaCodec.createDecoderByType(mime).apply {
-                configure(trackFormat, null, null, 0)
-                start()
-            }
+            val durationUs =
+                if (trackFormat.containsKey(MediaFormat.KEY_DURATION))
+                    trackFormat.getLong(MediaFormat.KEY_DURATION)
+                else -1L
+            val dec = MediaCodec.createDecoderByType(mime)
+            decoder = dec
+            dec.configure(trackFormat, null, null, 0)
+            dec.start()
 
             val info = MediaCodec.BufferInfo()
             var inputDone = false
             var outputDone = false
+            var aborted = false
             var acc = ByteArray(FRAME_BYTES * 8)
             var accLen = 0
 
-            while (!outputDone && running) {
+            while (!outputDone && !aborted && running && !musicStopped) {
+                if (musicForwardReq) {
+                    musicForwardReq = false
+                    try {
+                        val cur = ex.sampleTime
+                        if (cur >= 0) {
+                            var target = cur + FORWARD_US
+                            if (durationUs > 0 && target >= durationUs) target = 0L
+                            ex.seekTo(target, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
                 if (!inputDone) {
-                    val inIdx = decoder.dequeueInputBuffer(20_000)
+                    val inIdx = dec.dequeueInputBuffer(20_000)
                     if (inIdx >= 0) {
-                        val inBuf = decoder.getInputBuffer(inIdx)
-                        val size = if (inBuf != null) extractor.readSampleData(inBuf, 0) else -1
+                        val inBuf = dec.getInputBuffer(inIdx)
+                        val size = if (inBuf != null) ex.readSampleData(inBuf, 0) else -1
                         if (size < 0) {
-                            decoder.queueInputBuffer(
+                            dec.queueInputBuffer(
                                 inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM
                             )
                             inputDone = true
                         } else {
-                            decoder.queueInputBuffer(inIdx, 0, size, extractor.sampleTime, 0)
-                            extractor.advance()
+                            dec.queueInputBuffer(inIdx, 0, size, ex.sampleTime, 0)
+                            ex.advance()
                         }
                     }
                 }
 
-                val outIdx = decoder.dequeueOutputBuffer(info, 20_000)
+                val outIdx = dec.dequeueOutputBuffer(info, 20_000)
                 if (outIdx >= 0) {
                     try {
-                        val outBuf = decoder.getOutputBuffer(outIdx)
+                        val outBuf = dec.getOutputBuffer(outIdx)
                         if (outBuf != null && info.size > 0) {
                             outBuf.position(info.offset)
                             outBuf.limit(info.offset + info.size)
@@ -357,17 +423,22 @@ class AudioMixerEncoder(
                             }
                             System.arraycopy(resampled, 0, acc, accLen, resampled.size)
                             accLen += resampled.size
-                            while (accLen >= FRAME_BYTES) {
-                                queue.put(acc.copyOfRange(0, FRAME_BYTES))
-                                System.arraycopy(acc, FRAME_BYTES, acc, 0, accLen - FRAME_BYTES)
-                                accLen -= FRAME_BYTES
+                            while (accLen >= FRAME_BYTES && !aborted) {
+                                val frame = acc.copyOfRange(0, FRAME_BYTES)
+                                aborted = !putMusicFrame(queue, frame)
+                                if (!aborted) {
+                                    System.arraycopy(
+                                        acc, FRAME_BYTES, acc, 0, accLen - FRAME_BYTES
+                                    )
+                                    accLen -= FRAME_BYTES
+                                }
                             }
                         }
                     } catch (_: InterruptedException) {
                         Thread.currentThread().interrupt()
-                        return
+                        return false
                     }
-                    decoder.releaseOutputBuffer(outIdx, false)
+                    dec.releaseOutputBuffer(outIdx, false)
                     if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
                         outputDone = true
                     }
@@ -375,7 +446,9 @@ class AudioMixerEncoder(
                     outputDone = true
                 }
             }
+            return !aborted && running && !musicStopped
         } catch (_: Exception) {
+            return false
         } finally {
             try {
                 decoder?.stop()
@@ -386,6 +459,32 @@ class AudioMixerEncoder(
                 extractor?.release()
             } catch (_: Exception) {
             }
+        }
+    }
+
+    /**
+     * Blocks while the music is paused, then queues the frame. Returns false
+     * when the recording or the music has stopped.
+     */
+    private fun putMusicFrame(
+        queue: LinkedBlockingQueue<ByteArray>,
+        frame: ByteArray
+    ): Boolean {
+        while (musicPaused && running && !musicStopped) {
+            try {
+                Thread.sleep(30)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return false
+            }
+        }
+        if (!running || musicStopped) return false
+        return try {
+            queue.put(frame)
+            true
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
         }
     }
 
@@ -632,6 +731,7 @@ class AudioMixerEncoder(
         const val FRAME_BYTES = SAMPLE_RATE * FRAME_MS / 1000 * 2 * CHANNELS
         private const val QUEUE_CAPACITY = 32
         private const val PACE_TIMEOUT_MS = 40L
+        private const val FORWARD_US = 10_000_000L
         private const val ENCODING = AudioFormat.ENCODING_PCM_16BIT
         private const val CHANNEL_MASK_IN = AudioFormat.CHANNEL_IN_STEREO
     }

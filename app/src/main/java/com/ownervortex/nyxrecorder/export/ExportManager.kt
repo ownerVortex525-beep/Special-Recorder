@@ -5,7 +5,6 @@ import android.content.Context
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
@@ -29,9 +28,6 @@ import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
 import com.ownervortex.nyxrecorder.core.util.Constants
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 enum class EditFilter(val label: String) {
@@ -57,10 +53,92 @@ data class ExportRequest(
     val cropRight: Float = 0f,
     val cropBottom: Float = 0f,
     val output720: Boolean = false,
-    val watermark: String? = null
+    val watermark: String? = null,
+    val watermarkCorner: Int = 3,
+    val portrait: Boolean = false
 ) {
     val hasCrop: Boolean
         get() = cropLeft > 0f || cropTop > 0f || cropRight > 0f || cropBottom > 0f
+}
+
+/**
+ * Builds the video effect chain. Shared between the export pipeline and the
+ * editor's live preview — [includeSpeed] is false for preview because
+ * SpeedChangeEffect is not supported by ExoPlayer.setVideoEffects (the preview
+ * applies speed through playbackParameters instead).
+ */
+fun buildVideoEffects(request: ExportRequest, includeSpeed: Boolean): List<Effect> {
+    val effects = ArrayList<Effect>()
+
+    if (request.hasCrop) {
+        // Crop takes NDC coordinates: -1..1 with origin at center.
+        effects += Crop(
+            -1f + 2f * request.cropLeft,
+            -1f + 2f * request.cropTop,
+            1f - 2f * request.cropRight,
+            1f - 2f * request.cropBottom
+        )
+    }
+
+    if (request.output720) {
+        // Portrait sources get a portrait 720p output, not a landscape one.
+        effects += Presentation.createForWidthAndHeight(
+            if (request.portrait) 720 else 1280,
+            if (request.portrait) 1280 else 720,
+            Presentation.LAYOUT_SCALE_TO_FIT
+        )
+    }
+
+    when (request.filter) {
+        EditFilter.GRAYSCALE -> effects += RgbFilter.createGrayscaleFilter()
+        EditFilter.INVERT -> effects += RgbFilter.createInvertedFilter()
+        EditFilter.WARM -> effects += HslAdjustment.Builder()
+            .adjustHue(12f).adjustSaturation(0.15f).build()
+        EditFilter.COOL -> effects += HslAdjustment.Builder()
+            .adjustHue(-14f).adjustSaturation(0.1f).build()
+        EditFilter.VIVID -> effects += HslAdjustment.Builder()
+            .adjustSaturation(0.35f).build()
+        EditFilter.DARK -> effects += HslAdjustment.Builder()
+            .adjustLightness(-0.2f).build()
+        EditFilter.NONE -> Unit
+    }
+
+    if (request.brightness != 0f) effects += Brightness(request.brightness)
+    if (request.contrast != 1f) effects += Contrast(request.contrast)
+
+    if (includeSpeed && request.speed != 1f) {
+        effects += androidx.media3.effect.SpeedChangeEffect(request.speed)
+    }
+
+    val watermark = request.watermark
+    if (!watermark.isNullOrBlank()) {
+        try {
+            val (anchorX, anchorY) = when (request.watermarkCorner) {
+                0 -> -0.75f to 0.75f   // top-left
+                1 -> 0.75f to 0.75f    // top-right
+                2 -> -0.75f to -0.75f  // bottom-left
+                else -> 0.75f to -0.75f // bottom-right
+            }
+            val settings = androidx.media3.effect.OverlaySettings.Builder()
+                .setBackgroundFrameAnchor(anchorX, anchorY)
+                .setScale(1f, 1f)
+                .build()
+            val textOverlay = TextOverlay.createStaticTextOverlay(
+                android.text.SpannableString(watermark),
+                settings
+            )
+            effects += androidx.media3.effect.OverlayEffect(listOf(textOverlay))
+        } catch (_: Exception) {
+        }
+    }
+
+    // Always ensure even output dimensions.
+    effects += ScaleAndRotateTransformation.Builder()
+        .setScale(1f, 1f)
+        .setRotationDegrees(0f)
+        .build()
+
+    return effects
 }
 
 class ExportManager(private val context: Context) {
@@ -170,68 +248,8 @@ class ExportManager(private val context: Context) {
         tempFile = null
     }
 
-    private fun buildEffects(request: ExportRequest): List<Effect> {
-        val effects = ArrayList<Effect>()
-
-        if (request.hasCrop) {
-            // Crop takes NDC coordinates: -1..1 with origin at center.
-            effects += Crop(
-                -1f + 2f * request.cropLeft,
-                -1f + 2f * request.cropTop,
-                1f - 2f * request.cropRight,
-                1f - 2f * request.cropBottom
-            )
-        }
-
-        if (request.output720) {
-            effects += Presentation.createForWidthAndHeight(
-                1280, 720, Presentation.LAYOUT_SCALE_TO_FIT
-            )
-        }
-
-        when (request.filter) {
-            EditFilter.GRAYSCALE -> effects += RgbFilter.createGrayscaleFilter()
-            EditFilter.INVERT -> effects += RgbFilter.createInvertedFilter()
-            EditFilter.WARM -> effects += HslAdjustment.Builder()
-                .adjustHue(12f).adjustSaturation(0.15f).build()
-            EditFilter.COOL -> effects += HslAdjustment.Builder()
-                .adjustHue(-14f).adjustSaturation(0.1f).build()
-            EditFilter.VIVID -> effects += HslAdjustment.Builder()
-                .adjustSaturation(0.35f).build()
-            EditFilter.DARK -> effects += HslAdjustment.Builder()
-                .adjustLightness(-0.2f).build()
-            EditFilter.NONE -> Unit
-        }
-
-        if (request.brightness != 0f) effects += Brightness(request.brightness)
-        if (request.contrast != 1f) effects += Contrast(request.contrast)
-
-        if (request.speed != 1f) effects += androidx.media3.effect.SpeedChangeEffect(request.speed)
-
-        val watermark = request.watermark
-        if (!watermark.isNullOrBlank()) {
-            try {
-                val settings = androidx.media3.effect.OverlaySettings.Builder()
-                    .setBackgroundFrameAnchor(0.75f, -0.75f)
-                    .setScale(1f, 1f)
-                    .build()
-                val textOverlay = TextOverlay.createStaticTextOverlay(
-                    android.text.SpannableString(watermark),
-                    settings
-                )
-                effects += androidx.media3.effect.OverlayEffect(listOf(textOverlay))
-            } catch (_: Exception) {
-            }
-        }
-
-        // Always ensure even output dimensions.
-        effects += ScaleAndRotateTransformation.Builder()
-            .setScale(1f, 1f)
-            .setRotationDegrees(0f)
-            .build()
-
-        return effects
-    }
+    private fun buildEffects(request: ExportRequest): List<Effect> =
+        buildVideoEffects(request, includeSpeed = true)
 
     private fun buildAudioProcessors(request: ExportRequest): List<androidx.media3.common.audio.AudioProcessor> {
         if (request.speed == 1f) return emptyList()
@@ -276,16 +294,21 @@ class ExportManager(private val context: Context) {
 
     private fun publish(temp: File, onDone: (Uri) -> Unit, onError: (String) -> Unit) {
         try {
-            if (Build.VERSION.SDK_INT >= 29) {
-                val name = "NYX_EDIT_" +
-                    SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".mp4"
+            val sp = com.ownervortex.nyxrecorder.core.util.StoragePaths
+            val name = sp.exportFile().name
+            if (sp.hasAllFilesAccess(context) || Build.VERSION.SDK_INT < 29) {
+                val dest = sp.exportFile()
+                temp.copyTo(dest, overwrite = true)
+                temp.delete()
+                MediaScannerConnection.scanFile(
+                    context, arrayOf(dest.absolutePath), arrayOf("video/mp4"), null
+                )
+                onDone(Uri.fromFile(dest))
+            } else {
                 val values = ContentValues().apply {
                     put(MediaStore.Video.Media.DISPLAY_NAME, name)
                     put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
-                    put(
-                        MediaStore.Video.Media.RELATIVE_PATH,
-                        "${Environment.DIRECTORY_MOVIES}/${Constants.RECORD_DIR}"
-                    )
+                    put(MediaStore.Video.Media.RELATIVE_PATH, sp.relativePath())
                     put(MediaStore.Video.Media.IS_PENDING, 1)
                 }
                 val uri = context.contentResolver.insert(
@@ -298,21 +321,6 @@ class ExportManager(private val context: Context) {
                 context.contentResolver.update(uri, done, null, null)
                 temp.delete()
                 onDone(uri)
-            } else {
-                val dir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
-                    Constants.RECORD_DIR
-                )
-                dir.mkdirs()
-                val name = "NYX_EDIT_" +
-                    SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".mp4"
-                val dest = File(dir, name)
-                temp.copyTo(dest, overwrite = true)
-                temp.delete()
-                MediaScannerConnection.scanFile(
-                    context, arrayOf(dest.absolutePath), arrayOf("video/mp4"), null
-                )
-                onDone(Uri.fromFile(dest))
             }
         } catch (t: Throwable) {
             temp.delete()

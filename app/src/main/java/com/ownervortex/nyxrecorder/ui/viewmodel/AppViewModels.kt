@@ -187,6 +187,15 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     private val _selected = MutableStateFlow(SettingsStore.musicUri)
     val selected: StateFlow<String?> = _selected.asStateFlow()
 
+    // ---------------------------------------------------------- preview playback
+    private var previewPlayer: androidx.media3.exoplayer.ExoPlayer? = null
+
+    private val _previewUri = MutableStateFlow<String?>(null)
+    val previewUri: StateFlow<String?> = _previewUri.asStateFlow()
+
+    private val _previewPlaying = MutableStateFlow(false)
+    val previewPlaying: StateFlow<Boolean> = _previewPlaying.asStateFlow()
+
     fun load() {
         viewModelScope.launch {
             _loading.value = true
@@ -199,6 +208,51 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         SettingsStore.musicUri = track?.uri
         SettingsStore.musicTitle = track?.title
         _selected.value = track?.uri
+    }
+
+    /**
+     * Tap preview: a new track plays from 0:00, tapping the playing track
+     * toggles pause/resume.
+     */
+    fun togglePreview(track: MusicTrack) {
+        val player = previewPlayer ?: androidx.media3.exoplayer.ExoPlayer
+            .Builder(getApplication())
+            .build()
+            .also { previewPlayer = it }
+        if (_previewUri.value == track.uri) {
+            if (_previewPlaying.value) {
+                player.pause()
+                _previewPlaying.value = false
+            } else {
+                player.play()
+                _previewPlaying.value = true
+            }
+        } else {
+            player.setMediaItem(androidx.media3.common.MediaItem.fromUri(track.uri))
+            player.prepare()
+            player.play()
+            _previewUri.value = track.uri
+            _previewPlaying.value = true
+        }
+    }
+
+    /** Stops the preview (used when leaving the screen or starting a recording). */
+    fun stopPreview() {
+        try {
+            previewPlayer?.stop()
+        } catch (_: Exception) {
+        }
+        _previewUri.value = null
+        _previewPlaying.value = false
+    }
+
+    override fun onCleared() {
+        try {
+            previewPlayer?.release()
+        } catch (_: Exception) {
+        }
+        previewPlayer = null
+        super.onCleared()
     }
 
     fun hasPermission(): Boolean = repository.hasPermission()
@@ -222,8 +276,36 @@ data class EditParams(
     val contrast: Float = 1f,
     val cropPreset: Int = 0,
     val output720: Boolean = false,
-    val watermark: Boolean = false
+    val watermarkText: String = "",
+    val watermarkCorner: Int = 3
 )
+
+/** Maps editor params onto the export request (also used for live preview). */
+fun EditParams.toExportRequest(inputUri: String, portrait: Boolean): ExportRequest {
+    val crop = when (cropPreset) {
+        1 -> Triple(0.125f, 0f, 0.125f)      // 4:3-ish from 16:9
+        2 -> Triple(0.25f, 0f, 0.25f)        // 1:1
+        3 -> Triple(0.3f, 0f, 0.3f)          // 9:16 vertical
+        else -> Triple(0f, 0f, 0f)
+    }
+    return ExportRequest(
+        inputUri = inputUri,
+        trimStartMs = trimStartMs,
+        trimEndMs = if (trimEndMs > trimStartMs) trimEndMs else -1L,
+        speed = speed,
+        filter = filter,
+        brightness = brightness,
+        contrast = contrast,
+        cropLeft = crop.first,
+        cropTop = crop.second,
+        cropRight = crop.first,
+        cropBottom = crop.third,
+        output720 = output720,
+        watermark = watermarkText.ifBlank { null },
+        watermarkCorner = watermarkCorner,
+        portrait = portrait
+    )
+}
 
 class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -238,11 +320,18 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     var durationMs: Long = 0L
         private set
 
+    var sourcePortrait: Boolean = false
+        private set
+
     fun setDuration(ms: Long) {
         durationMs = ms
         if (_params.value.trimEndMs < 0) {
             _params.value = _params.value.copy(trimEndMs = ms)
         }
+    }
+
+    fun setSourceSize(width: Int, height: Int) {
+        sourcePortrait = width > 0 && height > width
     }
 
     fun update(transform: (EditParams) -> EditParams) {
@@ -253,27 +342,12 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         _params.value = EditParams()
         _export.value = ExportState.Idle
         durationMs = 0L
+        sourcePortrait = false
     }
 
     fun export(inputUri: String) {
         if (_export.value is ExportState.Running) return
-        val p = _params.value
-        val crop = cropFor(p.cropPreset)
-        val request = ExportRequest(
-            inputUri = inputUri,
-            trimStartMs = p.trimStartMs,
-            trimEndMs = if (p.trimEndMs > p.trimStartMs) p.trimEndMs else -1L,
-            speed = p.speed,
-            filter = p.filter,
-            brightness = p.brightness,
-            contrast = p.contrast,
-            cropLeft = crop.first,
-            cropTop = crop.second,
-            cropRight = crop.first,
-            cropBottom = crop.third,
-            output720 = p.output720,
-            watermark = if (p.watermark) "NYX" else null
-        )
+        val request = _params.value.toExportRequest(inputUri, sourcePortrait)
         _export.value = ExportState.Running(0)
         val exportManager = ExportManager(getApplication())
         manager = exportManager
@@ -293,13 +367,5 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun consumeDone() {
         if (_export.value is ExportState.Done) _export.value = ExportState.Idle
-    }
-
-    /** Returns (left, top, right) fractions to crop away. */
-    private fun cropFor(preset: Int): Triple<Float, Float, Float> = when (preset) {
-        1 -> Triple(0.125f, 0f, 0.125f)      // 4:3-ish from 16:9
-        2 -> Triple(0.25f, 0f, 0.25f)        // 1:1
-        3 -> Triple(0.3f, 0f, 0.3f)          // 9:16 vertical
-        else -> Triple(0f, 0f, 0f)
     }
 }

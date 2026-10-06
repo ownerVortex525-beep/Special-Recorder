@@ -11,7 +11,7 @@ Full-featured screen recorder + video editor for Android 8.0+ (built for Android
 - Floating control bubble (hidden from the recording itself) with pause / stop / hide
 - Optional face-cam window (front camera, captured into the video)
 - Foreground service with elapsed-time notification
-- Storage-aware: refuses to start below 500 MB free, writes to `Movies/NYXRecorder`
+- Storage-aware: refuses to start below 500 MB free, writes to `NYX Recorder` (All files access) with a `Movies/NYX Recorder` fallback
 - Countdown, touch indicator, low-storage / thermal checks
 
 **Library**
@@ -21,7 +21,7 @@ Full-featured screen recorder + video editor for Android 8.0+ (built for Android
 **Editor** (media3 Transformer)
 - Trim, speed (0.5x–2x), filters (B&W, invert, warm, cool, vivid, dark)
 - Brightness / contrast, crop presets (4:3, 1:1, 9:16), 720p downscale, watermark
-- Export with live progress to `Movies/NYXRecorder`
+- Export with live progress to `NYX Recorder`
 
 ## Tech
 

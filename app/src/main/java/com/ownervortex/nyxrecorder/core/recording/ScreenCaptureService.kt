@@ -20,7 +20,6 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -40,7 +39,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -105,6 +103,17 @@ class ScreenCaptureService : Service() {
             Constants.ACTION_PAUSE -> doPause()
             Constants.ACTION_RESUME -> doResume()
             Constants.ACTION_STOP -> serviceScope.launch { doStop() }
+            Constants.ACTION_MUSIC_TOGGLE -> {
+                audioEncoder?.toggleMusicPause()
+                pushNotification()
+            }
+            Constants.ACTION_MUSIC_STOP -> {
+                audioEncoder?.stopMusic()
+                pushNotification()
+            }
+            Constants.ACTION_MUSIC_FORWARD -> {
+                audioEncoder?.forwardMusic()
+            }
         }
         return START_NOT_STICKY
     }
@@ -200,7 +209,20 @@ class ScreenCaptureService : Service() {
 
         if (cfg.showBubble && android.provider.Settings.canDrawOverlays(this)) {
             try {
-                bubble = BubbleController(this, cfg.faceCam).also {
+                bubble = BubbleController(
+                    this,
+                    cfg.faceCam,
+                    cfg.musicUri != null,
+                    onMusicToggle = {
+                        audioEncoder?.toggleMusicPause()
+                        pushNotification()
+                    },
+                    onMusicStop = {
+                        audioEncoder?.stopMusic()
+                        pushNotification()
+                    },
+                    onMusicForward = { audioEncoder?.forwardMusic() }
+                ).also {
                     it.show(
                         onPauseToggle = {
                             if (paused) RecordingController.resume(this)
@@ -222,11 +244,19 @@ class ScreenCaptureService : Service() {
 
     private fun createOutputAndEncoder(cfg: RecordingConfig): Boolean {
         return try {
-            if (Build.VERSION.SDK_INT >= 29) {
+            if (com.ownervortex.nyxrecorder.core.util.StoragePaths.hasAllFilesAccess(this)) {
+                val file = com.ownervortex.nyxrecorder.core.util.StoragePaths.newCaptureFile()
+                outputFile = file
+                pendingFilePath = file.absolutePath
+                muxer = MediaMuxer(file.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            } else if (Build.VERSION.SDK_INT >= 29) {
                 val values = ContentValues().apply {
                     put(MediaStore.Video.Media.DISPLAY_NAME, fileName)
                     put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
-                    put(MediaStore.Video.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MOVIES}/${Constants.RECORD_DIR}")
+                    put(
+                        MediaStore.Video.Media.RELATIVE_PATH,
+                        com.ownervortex.nyxrecorder.core.util.StoragePaths.relativePath()
+                    )
                     put(MediaStore.Video.Media.IS_PENDING, 1)
                 }
                 outputUri = contentResolver.insert(
@@ -239,12 +269,7 @@ class ScreenCaptureService : Service() {
                     MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
                 )
             } else {
-                val dir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
-                    Constants.RECORD_DIR
-                )
-                dir.mkdirs()
-                val file = File(dir, fileName)
+                val file = com.ownervortex.nyxrecorder.core.util.StoragePaths.newCaptureFile()
                 outputFile = file
                 pendingFilePath = file.absolutePath
                 muxer = MediaMuxer(file.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
@@ -258,6 +283,12 @@ class ScreenCaptureService : Service() {
                 setInteger(MediaFormat.KEY_BIT_RATE, cfg.bitRate)
                 setInteger(MediaFormat.KEY_FRAME_RATE, cfg.frameRate)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
+                if (Build.VERSION.SDK_INT >= 29) {
+                    setInteger(
+                        MediaFormat.KEY_PROFILE,
+                        MediaCodecInfo.CodecProfileLevel.AVCProfileMain
+                    )
+                }
             }
             videoEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC).apply {
                 configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -583,11 +614,41 @@ class ScreenCaptureService : Service() {
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setColor(0xFF6C63FF.toInt())
-        if (!paused) {
+        if (paused) {
+            builder.addAction(
+                R.drawable.ic_stat_play,
+                "Resume",
+                actionIntent(Constants.ACTION_RESUME)
+            )
+        } else {
+            builder.addAction(
+                R.drawable.ic_stat_pause,
+                "Pause",
+                actionIntent(Constants.ACTION_PAUSE)
+            )
             builder.addAction(
                 R.drawable.ic_stat_record,
                 "Stop",
                 actionIntent(Constants.ACTION_STOP)
+            )
+        }
+        val musicUri = config?.musicUri
+        if (musicUri != null) {
+            val musicPaused = audioEncoder?.isMusicPaused() ?: false
+            builder.addAction(
+                if (musicPaused) R.drawable.ic_stat_play else R.drawable.ic_stat_pause,
+                if (musicPaused) "Music play" else "Music pause",
+                actionIntent(Constants.ACTION_MUSIC_TOGGLE)
+            )
+            builder.addAction(
+                R.drawable.ic_stat_music_stop,
+                "Music stop",
+                actionIntent(Constants.ACTION_MUSIC_STOP)
+            )
+            builder.addAction(
+                R.drawable.ic_stat_forward,
+                "Music +10s",
+                actionIntent(Constants.ACTION_MUSIC_FORWARD)
             )
         }
         return builder.build()

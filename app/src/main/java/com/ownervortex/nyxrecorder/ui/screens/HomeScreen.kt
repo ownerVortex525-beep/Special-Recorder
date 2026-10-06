@@ -99,7 +99,7 @@ fun HomeScreen(
         NixCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(vertical = 4.dp)) {
                 QuickRow("Free storage", freeSpaceLabel, if (freeSpaceLabel.startsWith("Low")) NixRed else NixText)
-                QuickRow("Output folder", "Movies/NYXRecorder")
+                QuickRow("Output folder", "NYX Recorder")
             }
         }
 

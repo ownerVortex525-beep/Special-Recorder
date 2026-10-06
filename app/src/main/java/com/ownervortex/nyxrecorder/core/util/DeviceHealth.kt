@@ -1,18 +1,17 @@
 package com.ownervortex.nyxrecorder.core.util
 
 import android.app.ActivityManager
+import android.app.ActivityManager
 import android.content.Context
-import android.os.Environment
 import android.os.PowerManager
 import java.io.File
 import java.util.Locale
 
 object DeviceHealth {
 
-    fun freeSpaceBytes(): Long {
+     fun freeSpaceBytes(): Long {
         return try {
-            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-            dir.mkdirs()
+            val dir = com.ownervortex.nyxrecorder.core.util.StoragePaths.directDir()
             dir.usableSpace
         } catch (_: Exception) {
             0L

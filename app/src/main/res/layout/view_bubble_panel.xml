@@ -4,47 +4,63 @@
     android:layout_height="wrap_content"
     android:background="@drawable/bg_panel"
     android:gravity="center"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:padding="8dp">
 
-    <TextView
-        android:id="@+id/panelPause"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_chip"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp"
-        android:text="❚❚ Pause"
-        android:textColor="@android:color/white"
-        android:textSize="13sp" />
+        android:gravity="center"
+        android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/panelStop"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="6dp"
-        android:background="@drawable/bg_chip_red"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp"
-        android:text="■ Stop"
-        android:textColor="@android:color/white"
-        android:textSize="13sp" />
+        <TextView
+            android:id="@+id/panelPause"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_chip"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:text="❚❚ Pause"
+            android:textColor="@android:color/white"
+            android:textSize="13sp" />
 
-    <TextView
-        android:id="@+id/panelHide"
+        <TextView
+            android:id="@+id/panelStop"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_chip_red"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:text="■ Stop"
+            android:textColor="@android:color/white"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/panelHide"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_chip"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:text="Hide"
+            android:textColor="@android:color/white"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/panelMusicSlot"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="6dp"
-        android:background="@drawable/bg_chip"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp"
-        android:text="Hide"
-        android:textColor="@android:color/white"
-        android:textSize="13sp" />
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal"
+        android:visibility="gone" />
 </LinearLayout>
