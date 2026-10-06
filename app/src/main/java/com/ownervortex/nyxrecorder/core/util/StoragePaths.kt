@@ -2,7 +2,6 @@ package com.ownervortex.nyxrecorder.core.util
 
 import android.os.Build
 import android.os.Environment
-import android.os.StatFs
 import java.io.File
 
 /**
@@ -44,18 +43,5 @@ object StoragePaths {
             java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US)
                 .format(java.util.Date()) + ".mp4"
         return File(dir, name)
-    }
-}
-
-/**
- * Updated storage health check that looks at the *output* volume rather than an
- * assumption hardcoded to Movies.
- */
-fun freeSpaceForOutput(): Long {
-    return try {
-        val dir = StoragePaths.directDir()
-        StatFs(dir.absolutePath).availableBytes
-    } catch (_: Exception) {
-        0L
     }
 }

@@ -300,10 +300,14 @@ class ExportManager(private val context: Context) {
                 val dest = sp.exportFile()
                 temp.copyTo(dest, overwrite = true)
                 temp.delete()
+                val result = Uri.fromFile(dest)
                 MediaScannerConnection.scanFile(
-                    context, arrayOf(dest.absolutePath), arrayOf("video/mp4"), null
-                )
-                onDone(Uri.fromFile(dest))
+                    context, arrayOf(dest.absolutePath), arrayOf("video/mp4")
+                ) { _, _ ->
+                    // Refresh only after the scanner has indexed the new file,
+                    // otherwise the library can miss the export.
+                    onDone(result)
+                }
             } else {
                 val values = ContentValues().apply {
                     put(MediaStore.Video.Media.DISPLAY_NAME, name)

@@ -150,11 +150,9 @@ fun AppRoot() {
                     }
                     countdown = 0
                     RecordingController.start(context, data, config)
-                    libraryViewModel.refresh()
                 }
             } else {
                 RecordingController.start(context, data, config)
-                libraryViewModel.refresh()
             }
         }
     }
@@ -253,7 +251,7 @@ fun AppRoot() {
     // Refresh library when a recording stops.
     var wasRecording by remember { mutableStateOf(status.isRecording) }
     LaunchedEffect(status.isRecording) {
-        if (wasRecording && !status.isRecording) libraryViewModel.refresh()
+        if (wasRecording && !status.isRecording) libraryViewModel.refreshWithRetry()
         wasRecording = status.isRecording
     }
 
@@ -321,7 +319,7 @@ fun AppRoot() {
                                 }
                                 editorViewModel.consumeDone()
                                 editorTarget = null
-                                libraryViewModel.refresh()
+                                libraryViewModel.refreshWithRetry()
                             }
                         )
                     }

@@ -75,6 +75,9 @@ class AudioMixerEncoder(
 
     fun isMusicPaused(): Boolean = musicPaused
 
+    /** True while music playback is still active (false once stopped for good). */
+    fun isMusicActive(): Boolean = !musicStopped
+
     /** Pause/resume the background music (notification + bubble controls). */
     fun toggleMusicPause() {
         if (musicStopped) return

@@ -13,6 +13,7 @@ import com.ownervortex.nyxrecorder.export.EditFilter
 import com.ownervortex.nyxrecorder.export.ExportManager
 import com.ownervortex.nyxrecorder.export.ExportRequest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -133,6 +134,15 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val items = repository.loadRecordings()
             _state.value = LibraryState.Loaded(items)
+        }
+    }
+
+    /** Refresh now and again after the media scanner has had time to index. */
+    fun refreshWithRetry() {
+        refresh()
+        viewModelScope.launch {
+            delay(1200)
+            refresh()
         }
     }
 

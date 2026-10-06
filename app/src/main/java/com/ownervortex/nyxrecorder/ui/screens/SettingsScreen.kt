@@ -137,17 +137,28 @@ fun SettingsScreen(
                 )
                 ToggleSetting(
                     title = "Touch indicator",
-                    subtitle = "Show taps (requires system setting)",
+                    subtitle = "Show taps while recording",
                     checked = state.touchIndicator,
                     onChange = { enabled ->
                         viewModel.setTouchIndicator(enabled)
-                        try {
-                            Settings.System.putInt(
-                                context.contentResolver,
-                                "show_touches",
-                                if (enabled) 1 else 0
-                            )
-                        } catch (_: Exception) {
+                        if (enabled &&
+                            Build.VERSION.SDK_INT >= 23 &&
+                            !Settings.canWrite(context)
+                        ) {
+                            try {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                                        Uri.parse("package:${context.packageName}")
+                                    )
+                                )
+                            } catch (_: Exception) {
+                            }
+                            android.widget.Toast.makeText(
+                                context,
+                                "Grant “Modify system settings”, then the taps will show while recording",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
                         }
                     }
                 )
@@ -259,7 +270,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Version 2.0.0 • Screen recorder & editor",
+                    "Version 2.1.0 • Screen recorder & editor",
                     color = NixTextDim, fontSize = 12.sp
                 )
                 Spacer(Modifier.height(8.dp))

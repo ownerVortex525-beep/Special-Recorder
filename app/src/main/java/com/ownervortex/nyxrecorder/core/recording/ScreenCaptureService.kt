@@ -25,6 +25,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -33,6 +34,7 @@ import com.ownervortex.nyxrecorder.R
 import com.ownervortex.nyxrecorder.core.overlay.BubbleController
 import com.ownervortex.nyxrecorder.core.util.Constants
 import com.ownervortex.nyxrecorder.core.util.DeviceHealth
+import com.ownervortex.nyxrecorder.data.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -70,6 +72,7 @@ class ScreenCaptureService : Service() {
     @Volatile private var cleanedUp = false
 
     private var audioEncoder: AudioMixerEncoder? = null
+    private var touchIndicatorApplied = false
     private var bubble: BubbleController? = null
     private var config: RecordingConfig? = null
     private var fileName: String = ""
@@ -120,6 +123,25 @@ class ScreenCaptureService : Service() {
 
     // ------------------------------------------------------------------ start
 
+    private fun applyTouchIndicator() {
+        if (!SettingsStore.touchIndicator) return
+        if (Build.VERSION.SDK_INT >= 23 && !Settings.canWrite(this)) return
+        touchIndicatorApplied = try {
+            Settings.System.putInt(contentResolver, Settings.System.SHOW_TOUCHES, 1)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun clearTouchIndicator() {
+        if (!touchIndicatorApplied) return
+        touchIndicatorApplied = false
+        try {
+            Settings.System.putInt(contentResolver, Settings.System.SHOW_TOUCHES, 0)
+        } catch (_: Exception) {
+        }
+    }
+
     private fun startRecording(projectionData: Intent, cfg: RecordingConfig) {
         recording = true
         stopping = false
@@ -135,6 +157,7 @@ class ScreenCaptureService : Service() {
         videoDiscarding = false
         pendingVideo.clear()
         config = cfg
+        applyTouchIndicator()
 
         fileName = "NYX_" +
             SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".mp4"
@@ -480,6 +503,7 @@ class ScreenCaptureService : Service() {
         }
 
         finalizeEverything()
+        clearTouchIndicator()
         mainHandler.post { hideBubble() }
         RecordingStatus.onStop()
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -633,7 +657,7 @@ class ScreenCaptureService : Service() {
             )
         }
         val musicUri = config?.musicUri
-        if (musicUri != null) {
+        if (musicUri != null && audioEncoder?.isMusicActive() == true) {
             val musicPaused = audioEncoder?.isMusicPaused() ?: false
             builder.addAction(
                 if (musicPaused) R.drawable.ic_stat_play else R.drawable.ic_stat_pause,
@@ -696,6 +720,7 @@ class ScreenCaptureService : Service() {
             finalizeEverything()
             RecordingStatus.onStop()
         }
+        clearTouchIndicator()
         hideBubble()
         serviceScope.cancel()
         super.onDestroy()

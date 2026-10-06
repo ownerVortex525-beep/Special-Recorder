@@ -99,7 +99,16 @@ fun HomeScreen(
         NixCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(vertical = 4.dp)) {
                 QuickRow("Free storage", freeSpaceLabel, if (freeSpaceLabel.startsWith("Low")) NixRed else NixText)
-                QuickRow("Output folder", "NYX Recorder")
+                QuickRow(
+                    "Output folder",
+                    if (android.os.Build.VERSION.SDK_INT >= 30 &&
+                        android.os.Environment.isExternalStorageManager()
+                    ) {
+                        "NYX Recorder"
+                    } else {
+                        "Movies/NYX Recorder"
+                    }
+                )
             }
         }
 
