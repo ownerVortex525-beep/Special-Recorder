@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">NYX-RECORDER</string>
+    <string name="recording_notification_channel">Screen recording</string>
+    <string name="recording_notification_channel_desc">Controls and status while NYX-RECORDER is capturing your screen</string>
+</resources>
