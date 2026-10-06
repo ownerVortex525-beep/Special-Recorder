@@ -132,22 +132,36 @@ fun EditorScreen(
     }
 
     // ------------------------------------------------------- live preview
-    val previewRequest = remember(params, viewModel.sourcePortrait) {
-        params.toExportRequest(recording.uri, viewModel.sourcePortrait)
-    }
-    val previewEffects = remember(previewRequest) {
-        buildVideoEffects(previewRequest, includeSpeed = false)
-    }
-    LaunchedEffect(previewEffects) {
-        try {
-            player.setVideoEffects(previewEffects)
-        } catch (_: Exception) {
+    // GLES3 probe: setVideoEffects needs a working GL pipeline. Without one the
+    // editor would crash, so preview stays plain and filters apply on export.
+    val glSupported = remember { probeGlEs3() }
+    var previewFailed by remember { mutableStateOf(false) }
+
+    if (glSupported) {
+        // Debounced: rapid slider ticks would tear down/recreate the GL pipeline
+        // on every frame, which crashes some GPUs (Mali).
+        LaunchedEffect(params, viewModel.sourcePortrait) {
+            kotlinx.coroutines.delay(300)
+            val request = params.toExportRequest(recording.uri, viewModel.sourcePortrait)
+            try {
+                player.setVideoEffects(
+                    buildVideoEffects(
+                        request,
+                        includeSpeed = false,
+                        includeWatermark = false,
+                        includeResize = false
+                    )
+                )
+                previewFailed = false
+            } catch (_: Throwable) {
+                previewFailed = true
+            }
         }
     }
     LaunchedEffect(params.speed) {
         try {
             player.playbackParameters = PlaybackParameters(params.speed)
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
         }
     }
 
@@ -191,25 +205,54 @@ fun EditorScreen(
         }
 
         // ---------------------------------------------------------- preview
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    this.player = player
-                    useController = true
-                    setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                }
-            },
-            modifier = Modifier
+        Box(
+            Modifier
                 .fillMaxWidth()
                 .height(230.dp)
                 .padding(horizontal = 12.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(androidx.compose.ui.graphics.Color.Black)
                 .border(1.dp, NixStroke, RoundedCornerShape(16.dp))
-        )
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        this.player = player
+                        useController = true
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+            if (params.watermarkText.isNotBlank()) {
+                Text(
+                    params.watermarkText,
+                    color = androidx.compose.ui.graphics.Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .align(
+                            when (params.watermarkCorner) {
+                                0 -> Alignment.TopStart
+                                1 -> Alignment.TopEnd
+                                2 -> Alignment.BottomStart
+                                else -> Alignment.BottomEnd
+                            }
+                        )
+                        .padding(12.dp)
+                )
+            }
+        }
         Text(
-            "Preview updates live — speed changes apply on export.",
-            color = NixTextDim,
+            when {
+                !glSupported ->
+                    "Live preview is not supported on this device — filters & watermark are applied on export."
+                previewFailed ->
+                    "Live preview stopped — your changes are still applied when you export."
+                else ->
+                    "Preview updates live — speed and watermark apply on export."
+            },
+            color = if (glSupported && !previewFailed) NixTextDim else NixAmber,
             fontSize = 11.sp,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
         )
@@ -527,6 +570,42 @@ private fun WatermarkPanel(viewModel: EditorViewModel, params: EditParams) {
 }
 
 // ----------------------------------------------------------------- helpers
+
+/**
+ * Returns true when a GLES3 context can be created. media3's setVideoEffects
+ * pipeline requires one; on devices without it the preview would crash, so the
+ * editor skips live effects and applies them only during export.
+ */
+private fun probeGlEs3(): Boolean = try {
+    val egl = javax.microedition.khronos.egl.EGLContext.getEGL()
+        as javax.microedition.khronos.egl.EGL10
+    val display = egl.eglGetDisplay(javax.microedition.khronos.egl.EGL10.EGL_DEFAULT_DISPLAY)
+    val version = IntArray(2)
+    if (display == javax.microedition.khronos.egl.EGL10.EGL_NO_DISPLAY ||
+        !egl.eglInitialize(display, version)
+    ) {
+        false
+    } else {
+        val attribs = intArrayOf(javax.microedition.khronos.egl.EGL10.EGL_NONE)
+        val configs = arrayOfNulls<javax.microedition.khronos.egl.EGLConfig>(1)
+        val count = IntArray(1)
+        var ok = false
+        if (egl.eglChooseConfig(display, attribs, configs, 1, count) && count[0] > 0) {
+            // 0x3098 = EGL_CONTEXT_CLIENT_VERSION, request GLES 3.
+            val ctx = egl.eglCreateContext(
+                display, configs[0],
+                javax.microedition.khronos.egl.EGL10.EGL_NO_CONTEXT,
+                intArrayOf(0x3098, 3, javax.microedition.khronos.egl.EGL10.EGL_NONE)
+            )
+            ok = ctx != null && ctx != javax.microedition.khronos.egl.EGL10.EGL_NO_CONTEXT
+            if (ok) egl.eglDestroyContext(display, ctx)
+        }
+        egl.eglTerminate(display)
+        ok
+    }
+} catch (_: Throwable) {
+    false
+}
 
 private fun extractThumbnails(
     context: Context,

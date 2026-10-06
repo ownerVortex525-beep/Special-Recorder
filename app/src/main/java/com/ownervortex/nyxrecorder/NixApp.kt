@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.ownervortex.nyxrecorder.core.util.Constants
+import com.ownervortex.nyxrecorder.core.util.CrashLog
 import com.ownervortex.nyxrecorder.data.SettingsStore
 
 class NixApp : Application() {
@@ -11,6 +12,7 @@ class NixApp : Application() {
     override fun onCreate() {
         super.onCreate()
         SettingsStore.init(this)
+        CrashLog.install(this)
         createChannels()
     }
 

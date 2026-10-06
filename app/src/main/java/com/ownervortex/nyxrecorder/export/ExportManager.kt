@@ -66,8 +66,18 @@ data class ExportRequest(
  * editor's live preview — [includeSpeed] is false for preview because
  * SpeedChangeEffect is not supported by ExoPlayer.setVideoEffects (the preview
  * applies speed through playbackParameters instead).
+ *
+ * Live preview also passes [includeWatermark] = false and [includeResize] = false:
+ * OverlayEffect/Presentation force an extra GL pipeline that has proven unstable
+ * in previews — the editor draws the watermark as a Compose overlay instead, and
+ * resizing only happens on export.
  */
-fun buildVideoEffects(request: ExportRequest, includeSpeed: Boolean): List<Effect> {
+fun buildVideoEffects(
+    request: ExportRequest,
+    includeSpeed: Boolean,
+    includeWatermark: Boolean = true,
+    includeResize: Boolean = true
+): List<Effect> {
     val effects = ArrayList<Effect>()
 
     if (request.hasCrop) {
@@ -80,7 +90,7 @@ fun buildVideoEffects(request: ExportRequest, includeSpeed: Boolean): List<Effec
         )
     }
 
-    if (request.output720) {
+    if (includeResize && request.output720) {
         // Portrait sources get a portrait 720p output, not a landscape one.
         effects += Presentation.createForWidthAndHeight(
             if (request.portrait) 720 else 1280,
@@ -111,7 +121,7 @@ fun buildVideoEffects(request: ExportRequest, includeSpeed: Boolean): List<Effec
     }
 
     val watermark = request.watermark
-    if (!watermark.isNullOrBlank()) {
+    if (includeWatermark && !watermark.isNullOrBlank()) {
         try {
             val (anchorX, anchorY) = when (request.watermarkCorner) {
                 0 -> -0.75f to 0.75f   // top-left

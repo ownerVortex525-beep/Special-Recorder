@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -61,12 +62,20 @@ fun SettingsScreen(
                 android.os.Environment.isExternalStorageManager()
         )
     }
+    var crashReport by remember {
+        mutableStateOf(
+            com.ownervortex.nyxrecorder.core.util.CrashLog.read(context)
+        )
+    }
+    var showCrashLog by remember { mutableStateOf(false) }
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 allFilesGranted = Build.VERSION.SDK_INT >= 30 &&
                     android.os.Environment.isExternalStorageManager()
+                crashReport =
+                    com.ownervortex.nyxrecorder.core.util.CrashLog.read(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -281,7 +290,63 @@ fun SettingsScreen(
                 )
             }
         }
+
+        Spacer(Modifier.height(12.dp))
+        NixCard(Modifier.fillMaxWidth()) {
+            SettingRow(
+                "Crash log",
+                subtitle = if (crashReport != null)
+                    "Last crash was recorded"
+                else
+                    "No crashes recorded"
+            ) {
+                if (crashReport != null) {
+                    TextButton(onClick = { showCrashLog = true }) {
+                        Text("View", color = NixPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    TextButton(onClick = {
+                        com.ownervortex.nyxrecorder.core.util.CrashLog.clear(context)
+                        crashReport = null
+                        showCrashLog = false
+                    }) {
+                        Text("Clear", color = NixTextDim, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(28.dp))
+    }
+
+    if (showCrashLog && crashReport != null) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showCrashLog = false }) {
+            NixCard(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "Crash report",
+                        color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        crashReport.orEmpty().take(6000),
+                        color = NixTextDim,
+                        fontSize = 11.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 320.dp)
+                            .verticalScroll(rememberScrollState())
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    TextButton(onClick = { showCrashLog = false }) {
+                        Text("Close", color = NixPrimary, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
     }
 }
 
