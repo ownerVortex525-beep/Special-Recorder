@@ -165,7 +165,7 @@ fun SettingsScreen(
                         viewModel.setTouchIndicator(enabled)
                         if (enabled &&
                             Build.VERSION.SDK_INT >= 23 &&
-                            !Settings.canWrite(context)
+                            !Settings.System.canWrite(context)
                         ) {
                             try {
                                 context.startActivity(

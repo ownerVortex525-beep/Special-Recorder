@@ -126,9 +126,10 @@ class ScreenCaptureService : Service() {
 
     private fun applyTouchIndicator() {
         if (!SettingsStore.touchIndicator) return
-        if (Build.VERSION.SDK_INT >= 23 && !Settings.canWrite(this)) return
+        if (Build.VERSION.SDK_INT >= 23 && !Settings.System.canWrite(this)) return
         touchIndicatorApplied = try {
-            Settings.System.putInt(contentResolver, Settings.System.SHOW_TOUCHES, 1)
+            // SHOW_TOUCHES is a hidden constant — use the setting key directly.
+            Settings.System.putInt(contentResolver, "show_touches", 1)
         } catch (_: Exception) {
             false
         }
@@ -138,7 +139,7 @@ class ScreenCaptureService : Service() {
         if (!touchIndicatorApplied) return
         touchIndicatorApplied = false
         try {
-            Settings.System.putInt(contentResolver, Settings.System.SHOW_TOUCHES, 0)
+            Settings.System.putInt(contentResolver, "show_touches", 0)
         } catch (_: Exception) {
         }
     }
