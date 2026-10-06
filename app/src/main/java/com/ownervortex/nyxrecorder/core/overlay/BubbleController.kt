@@ -14,6 +14,7 @@ import android.view.MotionEvent
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -393,7 +394,7 @@ class FaceCamView(
     }
 
     fun applyOutline() {
-        outlineProvider = object : View.OutlineProvider() {
+        outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: android.graphics.Outline) {
                 outline.setRoundRect(0, 0, view.width, view.height, dp(cornerRadius))
             }
