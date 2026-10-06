@@ -130,7 +130,7 @@ fun PlayerScreen(
                 factory = { ctx ->
                     val exo = player
                     PlayerView(ctx).apply {
-                        player = exo
+                        this.player = exo
                         useController = true
                         setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                     }

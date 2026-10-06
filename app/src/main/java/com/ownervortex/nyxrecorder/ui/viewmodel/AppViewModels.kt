@@ -281,7 +281,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             request,
             onProgress = { value -> _export.value = ExportState.Running(value) },
             onDone = { uri -> _export.value = ExportState.Done(uri) },
-            onError = { reason -> _export.value = ExportState.Failed(reason) }
+            onExportError = { reason -> _export.value = ExportState.Failed(reason) }
         )
     }
 

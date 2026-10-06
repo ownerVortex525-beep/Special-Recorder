@@ -77,7 +77,7 @@ class ExportManager(private val context: Context) {
         request: ExportRequest,
         onProgress: (Int) -> Unit,
         onDone: (Uri) -> Unit,
-        onError: (String) -> Unit
+        onExportError: (String) -> Unit
     ) {
         cancelled.set(false)
         finished = false
@@ -116,14 +116,14 @@ class ExportManager(private val context: Context) {
                     publish(
                         temp,
                         onDone = { uri -> mainHandler.post { onDone(uri) } },
-                        onError = { message -> mainHandler.post { onError(message) } }
+                        onError = { message -> mainHandler.post { onExportError(message) } }
                     )
                 }.start()
             }
 
             override fun onError(
                 composition: androidx.media3.transformer.Composition,
-                result: ExportResult?,
+                result: ExportResult,
                 exception: ExportException
             ) {
                 if (finished) return
@@ -131,7 +131,8 @@ class ExportManager(private val context: Context) {
                 stopProgress()
                 temp.delete()
                 if (!cancelled.get()) {
-                    onError(exception.errorCodeName ?: "Export failed")
+                    val reason = exception.errorCodeName
+                    mainHandler.post { onExportError(reason ?: "Export failed") }
                 }
             }
         }
@@ -154,7 +155,7 @@ class ExportManager(private val context: Context) {
             finished = true
             stopProgress()
             temp.delete()
-            onError(t.message ?: "Could not start export")
+            onExportError(t.message ?: "Could not start export")
         }
     }
 
@@ -214,10 +215,11 @@ class ExportManager(private val context: Context) {
                     .setBackgroundFrameAnchor(0.75f, -0.75f)
                     .setScale(1f, 1f)
                     .build()
-                effects += TextOverlay.createStaticTextOverlay(
+                val textOverlay = TextOverlay.createStaticTextOverlay(
                     android.text.SpannableString(watermark),
                     settings
                 )
+                effects += androidx.media3.effect.OverlayEffect(listOf(textOverlay))
             } catch (_: Exception) {
             }
         }

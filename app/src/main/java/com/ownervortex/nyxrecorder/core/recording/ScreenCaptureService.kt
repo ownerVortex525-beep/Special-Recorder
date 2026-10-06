@@ -31,7 +31,6 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.ownervortex.nyxrecorder.MainActivity
 import com.ownervortex.nyxrecorder.R
-import com.ownervortex.nyxrecorder.NixApp
 import com.ownervortex.nyxrecorder.core.overlay.BubbleController
 import com.ownervortex.nyxrecorder.core.util.Constants
 import com.ownervortex.nyxrecorder.core.util.DeviceHealth
@@ -259,7 +258,6 @@ class ScreenCaptureService : Service() {
                 setInteger(MediaFormat.KEY_BIT_RATE, cfg.bitRate)
                 setInteger(MediaFormat.KEY_FRAME_RATE, cfg.frameRate)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
-                setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME, 0)
             }
             videoEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC).apply {
                 configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -574,7 +572,7 @@ class ScreenCaptureService : Service() {
         }
         val time = DeviceHealth.formatDuration(elapsedMs)
         val quality = config?.qualityLabel ?: ""
-        val builder = NotificationCompat.Builder(this, NixApp.RECORDING_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, Constants.RECORDING_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_record)
             .setContentTitle(
                 if (paused) "Recording paused" else "Recording screen"

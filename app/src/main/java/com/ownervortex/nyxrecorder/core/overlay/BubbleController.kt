@@ -268,7 +268,7 @@ class BubbleController(
             PixelFormat.TRANSLUCENT
         )
 
-    private inline fun mainThread(block: () -> Unit) {
+    private fun mainThread(block: () -> Unit) {
         android.os.Handler(context.mainLooper).post {
             try {
                 block()
