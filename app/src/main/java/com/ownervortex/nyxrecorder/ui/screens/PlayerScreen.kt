@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +76,7 @@ fun PlayerScreen(
         }
     }
     var playing by remember { mutableStateOf(true) }
+    var fullscreen by remember { mutableStateOf(false) }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -91,8 +94,9 @@ fun PlayerScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
+            .then(if (fullscreen) Modifier else Modifier.padding(horizontal = 16.dp))
     ) {
+        if (!fullscreen) {
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
@@ -116,15 +120,22 @@ fun PlayerScreen(
         }
         Spacer(Modifier.height(4.dp))
         AccentBar()
+        }
 
-        Spacer(Modifier.height(14.dp))
+        if (!fullscreen) Spacer(Modifier.height(14.dp))
         Box(
             Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(18.dp))
+                .then(
+                    if (fullscreen) Modifier.fillMaxSize()
+                    else Modifier.aspectRatio(16f / 9f)
+                )
+                .clip(RoundedCornerShape(if (fullscreen) 0.dp else 18.dp))
                 .background(androidx.compose.ui.graphics.Color.Black)
-                .border(1.dp, NixStroke, RoundedCornerShape(18.dp))
+                .then(
+                    if (fullscreen) Modifier
+                    else Modifier.border(1.dp, NixStroke, RoundedCornerShape(18.dp))
+                )
         ) {
             AndroidView(
                 factory = { ctx ->
@@ -137,8 +148,21 @@ fun PlayerScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+            IconButton(
+                onClick = { fullscreen = !fullscreen },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+            ) {
+                Icon(
+                    if (fullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                    contentDescription = if (fullscreen) "Exit fullscreen" else "Fullscreen",
+                    tint = androidx.compose.ui.graphics.Color.White
+                )
+            }
         }
 
+        if (!fullscreen) {
         Spacer(Modifier.height(16.dp))
         NixCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
@@ -160,6 +184,7 @@ fun PlayerScreen(
             ActionButton("Delete", NixRed, Modifier.weight(1f), Icons.Filled.Delete, onDelete)
         }
         Spacer(Modifier.height(20.dp))
+        }
     }
 }
 
