@@ -575,6 +575,15 @@ class ScreenCaptureService : Service() {
         videoEncoder = null
 
         synchronized(muxerLock) {
+            // Flush any video frames buffered before the muxer started — otherwise
+            // they'd be silently dropped on stop, truncating the video track
+            // (the video ends early and playback "sticks" near the end).
+            if (muxerStarted && videoTrack >= 0) {
+                try {
+                    flushVideoPendingLocked()
+                } catch (_: Exception) {
+                }
+            }
             try {
                 if (muxerStarted) muxer?.stop()
             } catch (_: Exception) {

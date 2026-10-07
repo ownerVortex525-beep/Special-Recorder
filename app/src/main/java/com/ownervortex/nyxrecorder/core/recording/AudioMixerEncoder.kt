@@ -75,6 +75,9 @@ class AudioMixerEncoder(
     /** True while a music source was selected for this recording. */
     val hasMusic: Boolean get() = musicUri != null
 
+    /** The music [Source] (identified so the mixer can mirror it to the speakers). */
+    private var musicSource: Source? = null
+
     // Optional mirror of the music track to the device speakers while recording.
     private var speakerTrack: AudioTrack? = null
     /** True decoder output rate/channels (set once when INFO_OUTPUT_FORMAT_CHANGED arrives). */
@@ -190,7 +193,9 @@ class AudioMixerEncoder(
             val music = musicUri
             if (music != null) {
                 val queue = LinkedBlockingQueue<ByteArray>(QUEUE_CAPACITY)
-                sources.add(Source(queue, musicVolume.coerceIn(0f, 1.5f), pacing = false))
+                val src = Source(queue, musicVolume.coerceIn(0f, 1.5f), pacing = false)
+                sources.add(src)
+                musicSource = src
                 startThread { musicLoop(music, queue) }
             }
 
@@ -511,26 +516,21 @@ class AudioMixerEncoder(
                             System.arraycopy(resampled, 0, acc, accLen, resampled.size)
                             accLen += resampled.size
                             while (accLen >= FRAME_BYTES && !aborted) {
-                                val frame = acc.copyOfRange(0, FRAME_BYTES)
-                                aborted = !putMusicFrame(queue, frame)
-                                if (!aborted) {
-                                    // Mirror to the device speakers so the user
-                                    // hears the music while recording (muted when
-                                    // the recorder or the music is paused).
-                                    // When device-audio capture is ON the playback
-                                    // capture would re-record this speaker output,
-                                    // doubling the music in the file — so only play
-                                    // to the speakers when capture is off (the music
-                                    // is already mixed directly into the encoder).
-                                    if (!paused && !musicPaused && !recordDeviceAudio) {
-                                        ensureSpeaker()?.write(frame, 0, FRAME_BYTES)
+                                    val frame = acc.copyOfRange(0, FRAME_BYTES)
+                                    aborted = !putMusicFrame(queue, frame)
+                                    if (!aborted) {
+                                        // Speaker monitoring is driven by the mixer's
+                                        // real-time clock instead of here. Writing to the
+                                        // AudioTrack from this decode thread would block it
+                                        // whenever the speaker buffer filled, emptying the
+                                        // recording queue and making the mixer drop music
+                                        // frames — an audible glitch.
+                                        System.arraycopy(
+                                            acc, FRAME_BYTES, acc, 0, accLen - FRAME_BYTES
+                                        )
+                                        accLen -= FRAME_BYTES
                                     }
-                                    System.arraycopy(
-                                        acc, FRAME_BYTES, acc, 0, accLen - FRAME_BYTES
-                                    )
-                                    accLen -= FRAME_BYTES
                                 }
-                            }
                         }
                     } catch (_: InterruptedException) {
                         Thread.currentThread().interrupt()
@@ -622,6 +622,7 @@ class AudioMixerEncoder(
 
     private fun mixerLoop() {
         val pacingSource = sources.firstOrNull { it.pacing }
+        val music = musicSource
         while (running) {
             val frame = ByteArray(FRAME_BYTES)
             var paced = false
@@ -632,7 +633,20 @@ class AudioMixerEncoder(
                 } else {
                     source.queue.poll()
                 }
-                if (data != null) mixInto(frame, data, source.gain)
+                if (data != null) {
+                    // Mirror music to the speakers from this real-time clock so live
+                    // monitoring is steady, while the decode thread runs unblocked and
+                    // keeps the queue full (no dropped frames).
+                    if (source === music && !paused && !musicPaused && !recordDeviceAudio) {
+                        try {
+                            ensureSpeaker()?.write(
+                                data, 0, data.size, AudioTrack.WRITE_NON_BLOCKING
+                            )
+                        } catch (_: Exception) {
+                        }
+                    }
+                    mixInto(frame, data, source.gain)
+                }
             }
             if (pacingSource == null) {
                 // Music-only: pace the loop on wall clock.
