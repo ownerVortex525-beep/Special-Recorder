@@ -32,6 +32,7 @@ data class SettingsUi(
     val bubbleOpacity: Float = 0.5f,
     val countdown: Boolean = true,
     val faceCam: Boolean = false,
+    val faceCamSize: Int = 1,
     val touchIndicator: Boolean = false,
     val musicVolume: Float = 0.7f,
     val musicUri: String? = null,
@@ -54,6 +55,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         bubbleOpacity = SettingsStore.bubbleOpacity,
         countdown = SettingsStore.countdown,
         faceCam = SettingsStore.faceCam,
+        faceCamSize = SettingsStore.faceCamSize,
         touchIndicator = SettingsStore.touchIndicator,
         musicVolume = SettingsStore.musicVolume,
         musicUri = SettingsStore.musicUri,
@@ -106,6 +108,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun setFaceCamSize(index: Int) {
+        SettingsStore.faceCamSize = index
+        refresh()
+    }
+
     fun setTouchIndicator(enabled: Boolean) {
         SettingsStore.touchIndicator = enabled
         refresh()
@@ -119,7 +126,6 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setMusicVolume(value: Float) {
         SettingsStore.musicVolume = value
-        previewPlayer?.volume = value.coerceIn(0f, 1f)
         refresh()
     }
 
