@@ -1,6 +1,12 @@
 package com.ownervortex.nyxrecorder.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -35,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -156,9 +163,24 @@ private fun RecordButton(onRecord: () -> Unit, countdownValue: Int) {
             exit = fadeOut()
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Gentle breathing pulse so the idle button feels alive.
+                val pulseTransition = rememberInfiniteTransition(label = "recPulse")
+                val pulse = pulseTransition.animateFloat(
+                    initialValue = 0.95f,
+                    targetValue = 1.05f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1500, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "recPulseScale"
+                ).value
                 Box(
                     modifier = Modifier
                         .size(172.dp)
+                        .graphicsLayer {
+                            scaleX = pulse
+                            scaleY = pulse
+                        }
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
