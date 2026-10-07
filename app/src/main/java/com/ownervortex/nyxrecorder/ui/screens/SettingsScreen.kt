@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ownervortex.nyxrecorder.core.util.DeviceHealth
+import com.ownervortex.nyxrecorder.data.SettingsStore
 import com.ownervortex.nyxrecorder.data.ThumbnailCache
 import com.ownervortex.nyxrecorder.ui.components.AccentBar
 import com.ownervortex.nyxrecorder.ui.components.NixCard
@@ -204,6 +206,31 @@ fun SettingsScreen(
                     checked = state.faceCam,
                     onChange = { viewModel.setFaceCam(it) }
                 )
+                if (state.faceCam) {
+                    Text(
+                        "Face cam size",
+                        color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("S" to 0, "M" to 1, "L" to 2).forEach { (label, index) ->
+                            NixChip(
+                                label = label,
+                                selected = state.faceCamSize == index,
+                                onClick = { viewModel.setFaceCamSize(index)
+                                }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    ToggleSetting(
+                        title = "Round face cam",
+                        subtitle = "Circle vs softly rounded window",
+                        checked = SettingsStore.faceCamRound,
+                        onChange = { SettingsStore.faceCamRound = it; viewModel.refresh() }
+                    )
+                }
                 ToggleSetting(
                     title = "Touch indicator",
                     subtitle = "Show taps while recording",

@@ -14,6 +14,7 @@ object SettingsStore {
     private const val KEY_BUBBLE_OPACITY = "bubble_opacity"
     private const val KEY_COUNTDOWN = "countdown"
     private const val KEY_FACE_CAM = "face_cam"
+    private const val KEY_FACE_CAM_SIZE = "face_cam_size"
     private const val KEY_FACE_CAM_ROUND = "face_cam_round"
     private const val KEY_TOUCH = "touch_indicator"
     private const val KEY_MUSIC_VOLUME = "music_volume"
@@ -73,6 +74,11 @@ object SettingsStore {
     var faceCam: Boolean
         get() = prefs.getBoolean(KEY_FACE_CAM, false)
         set(value) = prefs.edit().putBoolean(KEY_FACE_CAM, value).apply()
+
+    /** FaceCam size: 0 = Small (88dp), 1 = Medium (104dp), 2 = Large (120dp). */
+    var faceCamSize: Int
+        get() = prefs.getInt(KEY_FACE_CAM_SIZE, 1).coerceIn(0, 2)
+        set(value) = prefs.edit().putInt(KEY_FACE_CAM_SIZE, value.coerceIn(0, 2)).apply()
 
     /** FaceCam shape: true = circle, false = rounded square. */
     var faceCamRound: Boolean

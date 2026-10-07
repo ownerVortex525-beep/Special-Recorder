@@ -408,7 +408,8 @@ class BubbleController(
                     CameraCharacteristics.LENS_FACING_FRONT
             } ?: return
 
-            val size = 140.dp()
+            val sizeDp = faceCamSizeDp
+            val size = sizeDp.dp()
             val view = FaceCamView(context, lens, cameraManager)
             faceCamView = view
             view.setRound(SettingsStore.faceCamRound)
@@ -547,6 +548,14 @@ class BubbleController(
         }
     }
 
+    /** Configured face-cam diameter in dp (Small 88 / Medium 104 / Large 120). */
+    private val faceCamSizeDp: Int
+        get() = when (SettingsStore.faceCamSize) {
+            0 -> 88
+            2 -> 120
+            else -> 104
+        }
+
     companion object {
         const val FULL_ALPHA = 1.0f
         @JvmField
@@ -571,13 +580,16 @@ class FaceCamView(
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         addView(this)
     }
-    private var cornerRadius = 24f // dp
+    private var roundShape = false
     private var openRequest = false
 
-    /** Applies the requested shape: a full circle or a softly rounded square. */
+    /** Camera preview buffer. Kept at the universally supported VGA size; the window scales it. */
+    private val bufferW = 640
+    private val bufferH = 480
+
+    /** Applies the requested shape: a full circle (regardless of size) or a rounded square. */
     fun setRound(round: Boolean) {
-        // The face-cam window is 140dp; a circle needs a 70dp radius.
-        cornerRadius = if (round) 70f else 24f
+        roundShape = round
         applyOutline()
     }
 
@@ -588,7 +600,7 @@ class FaceCamView(
             override fun onSurfaceTextureAvailable(
                 st: SurfaceTexture, w: Int, h: Int
             ) {
-                st.setDefaultBufferSize(BUFFER_W, BUFFER_H)
+                st.setDefaultBufferSize(bufferW, bufferH)
                 openCamera(st)
             }
 
@@ -603,7 +615,12 @@ class FaceCamView(
     fun applyOutline() {
         outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: android.graphics.Outline) {
-                outline.setRoundRect(0, 0, view.width, view.height, dp(cornerRadius))
+                if (roundShape) {
+                    // True circle, scales with any window size.
+                    outline.setOval(0, 0, view.width, view.height)
+                } else {
+                    outline.setRoundRect(0, 0, view.width, view.height, dp(24f))
+                }
             }
         }
         post { invalidateOutline() }
@@ -697,8 +714,8 @@ class FaceCamView(
             (sensorOrientation - displayDeg + 360) % 360
         }
 
-        val bw = BUFFER_W.toFloat()
-        val bh = BUFFER_H.toFloat()
+        val bw = bufferW.toFloat()
+        val bh = bufferH.toFloat()
         val cx = w / 2f
         val cy = h / 2f
         // Cover-scale once the buffer has been rotated into view space.
@@ -731,10 +748,5 @@ class FaceCamView(
         }
         device = null
         openRequest = false
-    }
-
-    companion object {
-        private const val BUFFER_W = 640
-        private const val BUFFER_H = 480
     }
 }
