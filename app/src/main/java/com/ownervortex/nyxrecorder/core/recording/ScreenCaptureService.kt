@@ -24,6 +24,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
@@ -150,7 +151,7 @@ class ScreenCaptureService : Service() {
         cleanedUp = false
         paused = false
         elapsedMs = 0L
-        lastTickMs = System.currentTimeMillis()
+        lastTickMs = SystemClock.elapsedRealtime()
         videoTrack = -1
         audioTrackIndex = -1
         muxerStarted = false
@@ -489,7 +490,7 @@ class ScreenCaptureService : Service() {
     private fun doPause() {
         if (!recording || paused || stopping) return
         paused = true
-        lastTickMs = System.currentTimeMillis()
+        lastTickMs = SystemClock.elapsedRealtime()
         audioEncoder?.setPaused(true)
         RecordingStatus.onPaused(true)
         bubble?.setPaused(true)
@@ -499,7 +500,7 @@ class ScreenCaptureService : Service() {
     private fun doResume() {
         if (!recording || !paused || stopping) return
         paused = false
-        lastTickMs = System.currentTimeMillis()
+        lastTickMs = SystemClock.elapsedRealtime()
         audioEncoder?.setPaused(false)
         RecordingStatus.onPaused(false)
         bubble?.setPaused(false)
@@ -632,8 +633,9 @@ class ScreenCaptureService : Service() {
 
     private fun runTicker() {
         if (!recording || stopping || cleanedUp) return
-        val now = System.currentTimeMillis()
-        if (!paused) elapsedMs += now - lastTickMs
+        val now = SystemClock.elapsedRealtime()
+        val dt = (now - lastTickMs).coerceIn(0L, 5000L)
+        if (!paused) elapsedMs += dt
         lastTickMs = now
         RecordingStatus.onTick(elapsedMs, paused)
         bubble?.updateTime(DeviceHealth.formatDuration(elapsedMs))
@@ -742,7 +744,7 @@ class ScreenCaptureService : Service() {
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= 29) {
             var type = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-            val needsMic = cfg.recordMic || cfg.recordDeviceAudio
+            val needsMic = cfg.recordMic || cfg.recordDeviceAudio || !cfg.musicUri.isNullOrEmpty()
             val micGranted = ContextCompat.checkSelfPermission(
                 this, android.Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED
