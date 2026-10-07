@@ -546,7 +546,7 @@ fun SettingsScreen(
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterHorizontally
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = {
                             com.ownervortex.nyxrecorder.core.util.CrashLog.read(context)?.let {
