@@ -483,7 +483,9 @@ private fun qualityLabelFor(preset: Int): String = when (preset) {
     0 -> "Auto"
     1 -> "1080p"
     2 -> "720p"
-    else -> "480p"
+    3 -> "480p"
+    4 -> "1440p"
+    else -> "4K"
 }
 
 private fun freeSpaceLabel(context: Context): String {
@@ -509,6 +511,8 @@ private fun buildConfig(
         1 -> 1080
         2 -> 720
         3 -> 480
+        4 -> 1440
+        5 -> 2160
         else -> short
     }
     val scale = if (settings.qualityPreset == 0) 1f
@@ -517,7 +521,7 @@ private fun buildConfig(
     val w = ((width * scale).toInt() / 2 * 2).coerceAtLeast(2)
     val h = ((height * scale).toInt() / 2 * 2).coerceAtLeast(2)
     val fps = settings.frameRate.coerceIn(24, 60)
-    val bitRate = (w.toLong() * h * fps / 14).coerceIn(2_000_000L, 16_000_000L).toInt()
+    val bitRate = (w.toLong() * h * fps / 14).coerceIn(2_000_000L, 40_000_000L).toInt()
 
     return RecordingConfig(
         width = w,

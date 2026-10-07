@@ -118,6 +118,16 @@ fun RecordOptionsSheet(
                     )
                 }
             }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("1440p" to 4, "4K" to 5).forEach { (label, index) ->
+                    NixChip(
+                        label = label,
+                        selected = settings.qualityPreset == index,
+                        onClick = { viewModel.setQuality(index) }
+                    )
+                }
+            }
 
             Spacer(Modifier.height(12.dp))
             SectionTitle("FRAME RATE")

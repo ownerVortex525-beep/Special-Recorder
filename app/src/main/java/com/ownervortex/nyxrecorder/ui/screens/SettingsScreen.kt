@@ -141,6 +141,16 @@ fun SettingsScreen(
                         )
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    listOf("1440p" to 4, "4K" to 5).forEach { (label, index) ->
+                        NixChip(
+                            label = label,
+                            selected = state.qualityPreset == index,
+                            onClick = { viewModel.setQuality(index) }
+                        )
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
                 Text("Frame rate", color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(4.dp))
