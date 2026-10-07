@@ -37,7 +37,8 @@ data class SettingsUi(
     val musicVolume: Float = 0.7f,
     val musicUri: String? = null,
     val musicTitle: String? = null,
-    val themeIndex: Int = 0
+    val themeIndex: Int = 0,
+    val timestampIndia: Boolean = true
 )
 
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
@@ -60,7 +61,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         musicVolume = SettingsStore.musicVolume,
         musicUri = SettingsStore.musicUri,
         musicTitle = SettingsStore.musicTitle,
-        themeIndex = SettingsStore.themeIndex
+        themeIndex = SettingsStore.themeIndex,
+        timestampIndia = SettingsStore.timestampIndia
     )
 
     fun setQuality(index: Int) {
@@ -121,6 +123,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setTheme(index: Int) {
         SettingsStore.themeIndex = index
         com.ownervortex.nyxrecorder.ui.theme.setNixPalette(index)
+        refresh()
+    }
+
+    fun setTimestampIndia(enabled: Boolean) {
+        SettingsStore.timestampIndia = enabled
         refresh()
     }
 

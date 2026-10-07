@@ -25,6 +25,7 @@ object SettingsStore {
     private const val KEY_THEME = "theme_index"
     private const val KEY_HOME_LABEL = "home_label"
     private const val KEY_SAVE_DIR = "save_dir"
+    private const val KEY_TIMESTAMP_INDIA = "timestamp_india"
 
     private lateinit var prefs: SharedPreferences
 
@@ -59,7 +60,7 @@ object SettingsStore {
 
     /** 0 = Small (48dp), 1 = Medium (64dp), 2 = Large (80dp). */
     var bubbleSize: Int
-        get() = prefs.getInt(KEY_BUBBLE_SIZE, 1).coerceIn(0, 2)
+        get() = prefs.getInt(KEY_BUBBLE_SIZE, 0).coerceIn(0, 2)
         set(value) = prefs.edit().putInt(KEY_BUBBLE_SIZE, value.coerceIn(0, 2)).apply()
 
     /** On-screen dim opacity of the bubble while recording (0.10 … 1.0). */
@@ -122,6 +123,14 @@ object SettingsStore {
     var themeIndex: Int
         get() = prefs.getInt(KEY_THEME, 0)
         set(value) = prefs.edit().putInt(KEY_THEME, value).apply()
+
+    /**
+     * Timestamp timezone shown in the library and player: true = fixed India
+     * time (Asia/Kolkata), false = the device's local timezone.
+     */
+    var timestampIndia: Boolean
+        get() = prefs.getBoolean(KEY_TIMESTAMP_INDIA, true)
+        set(value) = prefs.edit().putBoolean(KEY_TIMESTAMP_INDIA, value).apply()
 
     fun favorites(): Set<String> = prefs.getStringSet(KEY_FAVORITES, emptySet()) ?: emptySet()
 

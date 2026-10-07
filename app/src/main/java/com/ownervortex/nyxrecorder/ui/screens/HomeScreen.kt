@@ -77,17 +77,17 @@ fun HomeScreen(
         Spacer(Modifier.height(12.dp))
         val homeWatermark = remember {
             com.ownervortex.nyxrecorder.data.SettingsStore.homeLabel
-                ?.takeIf { it.isNotBlank() } ?: "NYX-RECORDER"
+                ?.takeIf { it.isNotBlank() } ?: "CYBER-FORCE"
         }
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.Start
         ) {
             Text(
                 homeWatermark,
-                color = NixTextDim.copy(alpha = 0.65f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
+                color = NixAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp
             )
         }

@@ -171,8 +171,7 @@ fun PlayerScreen(
                 InfoRow("Size", DeviceHealth.formatBytes(recording.sizeBytes))
                 InfoRow(
                     "Added",
-                    java.text.SimpleDateFormat("dd MMM yyyy, HH:mm", java.util.Locale.getDefault())
-                        .format(java.util.Date(recording.createdAt))
+                    com.ownervortex.nyxrecorder.core.util.Timestamps.format(recording.createdAt)
                 )
             }
         }

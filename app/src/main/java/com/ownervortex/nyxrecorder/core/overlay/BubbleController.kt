@@ -112,6 +112,15 @@ class BubbleController(
         timeText = view.findViewById(R.id.bubbleTime)
 
         val size = bubbleSizeDp.dp()
+        // Scale the icon proportionally to the ball so the timer text always fits beneath it.
+        view.findViewById<ImageView>(R.id.bubbleIcon)?.let { icon ->
+            val iconSize = (size * 0.72f).toInt().coerceAtLeast(24.dp())
+            icon.layoutParams?.let { lp ->
+                lp.width = iconSize
+                lp.height = iconSize
+                icon.layoutParams = lp
+            }
+        }
         val screenW = context.resources.displayMetrics.widthPixels
         val screenH = context.resources.displayMetrics.heightPixels
 

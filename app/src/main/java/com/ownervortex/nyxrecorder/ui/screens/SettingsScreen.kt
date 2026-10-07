@@ -353,6 +353,34 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(14.dp))
+        NixCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    "Timestamps",
+                    color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Timezone shown for recordings in the library and player",
+                    color = NixTextDim, fontSize = 12.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NixChip(
+                        label = "Device",
+                        selected = !state.timestampIndia,
+                        onClick = { viewModel.setTimestampIndia(false) }
+                    )
+                    NixChip(
+                        label = "India",
+                        selected = state.timestampIndia,
+                        onClick = { viewModel.setTimestampIndia(true) }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
         SectionTitle("BRANDING")
         NixCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
@@ -369,7 +397,7 @@ fun SettingsScreen(
                 var homeLabel by remember {
                     mutableStateOf(
                         com.ownervortex.nyxrecorder.data.SettingsStore.homeLabel
-                            ?.takeIf { it.isNotBlank() } ?: "NYX-RECORDER"
+                            ?.takeIf { it.isNotBlank() } ?: "CYBER-FORCE"
                     )
                 }
                 TextField(

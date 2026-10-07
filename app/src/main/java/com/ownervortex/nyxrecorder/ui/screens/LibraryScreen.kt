@@ -171,6 +171,13 @@ private fun RecordingCard(
                 fontSize = 12.sp,
                 maxLines = 1
             )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                com.ownervortex.nyxrecorder.core.util.Timestamps.format(recording.createdAt),
+                color = NixTextDim,
+                fontSize = 11.sp,
+                maxLines = 1
+            )
             if (recording.isFavorite) {
                 Spacer(Modifier.height(4.dp))
                 Text(
