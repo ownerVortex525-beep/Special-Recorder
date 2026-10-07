@@ -111,7 +111,7 @@ private fun SplashContent() {
         Spacer(Modifier.height(16.dp))
         Text(
             "Build by CYBER-FORCE",
-            color = Color(0xFF6C63FF),
+            color = Color(0xFF00D9A6),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp

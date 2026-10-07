@@ -543,6 +543,7 @@ class ScreenCaptureService : Service() {
         mainHandler.post { hideBubble() }
         RecordingStatus.onStop()
         stopForeground(STOP_FOREGROUND_REMOVE)
+        notifySaved()
         stopSelf()
     }
 
@@ -644,6 +645,29 @@ class ScreenCaptureService : Service() {
         try {
             getSystemService(NotificationManager::class.java)
                 ?.notify(Constants.RECORDING_NOTIFICATION_ID, buildNotification())
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun notifySaved() {
+        try {
+            val openIntent = PendingIntent.getActivity(
+                this, 1,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val name = if (fileName.isBlank()) "Recording" else fileName
+            val notification = NotificationCompat.Builder(this, Constants.RECORDING_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_record)
+                .setContentTitle("Recording saved")
+                .setContentText(name)
+                .setContentIntent(openIntent)
+                .setAutoCancel(true)
+                .setShowWhen(true)
+                .setColor(com.ownervortex.nyxrecorder.ui.theme.NixPrimary.toArgb())
+                .build()
+            getSystemService(NotificationManager::class.java)
+                ?.notify(Constants.RECORDING_SAVED_NOTIFICATION_ID, notification)
         } catch (_: Exception) {
         }
     }

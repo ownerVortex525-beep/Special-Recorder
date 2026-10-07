@@ -517,7 +517,12 @@ class AudioMixerEncoder(
                                     // Mirror to the device speakers so the user
                                     // hears the music while recording (muted when
                                     // the recorder or the music is paused).
-                                    if (!paused && !musicPaused) {
+                                    // When device-audio capture is ON the playback
+                                    // capture would re-record this speaker output,
+                                    // doubling the music in the file — so only play
+                                    // to the speakers when capture is off (the music
+                                    // is already mixed directly into the encoder).
+                                    if (!paused && !musicPaused && !recordDeviceAudio) {
                                         ensureSpeaker()?.write(frame, 0, FRAME_BYTES)
                                     }
                                     System.arraycopy(

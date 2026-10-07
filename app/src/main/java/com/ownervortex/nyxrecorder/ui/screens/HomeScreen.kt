@@ -144,7 +144,7 @@ private fun RecordButton(onRecord: () -> Unit, countdownValue: Int) {
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
-                                listOf(NixRed.copy(alpha = 0.35f), NixRed.copy(alpha = 0.05f))
+                                listOf(NixAccent.copy(alpha = 0.35f), NixAccent.copy(alpha = 0.05f))
                             )
                         )
                         .clickable(onClick = onRecord),
@@ -155,9 +155,9 @@ private fun RecordButton(onRecord: () -> Unit, countdownValue: Int) {
                             .size(122.dp)
                             .clip(CircleShape)
                             .background(
-                                Brush.linearGradient(listOf(NixRed, NixRed.copy(alpha = 0.72f)))
+                                Brush.linearGradient(listOf(NixAccent, NixAccent.copy(alpha = 0.72f)))
                             )
-                            .border(3.dp, NixRed.copy(alpha = 0.5f), CircleShape),
+                            .border(3.dp, NixAccent.copy(alpha = 0.5f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
