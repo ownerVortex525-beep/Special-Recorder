@@ -92,7 +92,7 @@ fun SettingsScreen(
                 saveDirPath = rel
                 saveDirError = null
             } else {
-                saveDirError = "Please pick a folder on internal storage"
+                saveDirError = "Please pick a folder, not the storage root"
             }
         }
     }
@@ -549,8 +549,11 @@ fun SettingsScreen(
                 }
                 SettingRow(
                     "Save folder",
-                    subtitle = saveDirPath?.let { "/storage/emulated/0/$it" }
-                        ?: "/storage/emulated/0/NYX Recorder (default)"
+                    subtitle = when {
+                        saveDirPath == null -> "/storage/emulated/0/NYX Recorder (default)"
+                        saveDirPath!!.startsWith("/") -> saveDirPath!!
+                        else -> "/storage/emulated/0/$saveDirPath"
+                    }
                 ) {
                     TextButton(onClick = { folderLauncher.launch(null) }) {
                         Text("Change", color = NixPrimary, fontWeight = FontWeight.Bold)
@@ -569,6 +572,15 @@ fun SettingsScreen(
                         saveDirError ?: "",
                         color = NixRed,
                         fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                    )
+                }
+                if (saveDirPath != null && saveDirPath!!.startsWith("/") && !allFilesGranted) {
+                    Text(
+                        "SD-card folders need \"All files access\" — otherwise clips save to the default folder.",
+                        color = NixTextDim,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
                     )
                 }
@@ -719,16 +731,20 @@ private data class PermissionRow(
 )
 
 /**
- * Derives a storage-root-relative folder path from a SAF tree Uri, but only for
- * the primary internal volume (SD-card trees are not portable across save modes).
+ * Derives a save-folder path from a SAF tree Uri.
+ * - Primary internal volume → a storage-root-relative path (e.g. "MyClips").
+ * - Secondary volume (SD card) → an absolute path (e.g. "/storage/XXXX-XXXX/Clips").
+ * Returns null for the storage root (not a valid save target) or on error.
  */
 private fun primaryRelativePath(uri: android.net.Uri): String? = try {
     val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
-    val parts = docId.split(":")
-    if (parts.size >= 2 && parts[0].equals("primary", ignoreCase = true)) {
-        parts[1].trim().trimEnd('/').ifEmpty { null }
-    } else {
-        null
+    val parts = docId.split(":", limit = 2)
+    val volume = parts[0]
+    val subPath = if (parts.size > 1) parts[1].trim().trimEnd('/') else ""
+    when {
+        volume.equals("primary", ignoreCase = true) -> subPath.ifEmpty { null }
+        subPath.isEmpty() -> null
+        else -> "/storage/$volume/$subPath"
     }
 } catch (_: Exception) {
     null

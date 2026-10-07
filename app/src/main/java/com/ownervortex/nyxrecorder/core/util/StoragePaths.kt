@@ -20,20 +20,34 @@ object StoragePaths {
         Build.VERSION.SDK_INT >= 30 &&
             Environment.isExternalStorageManager()
 
-    /** User-chosen save folder (relative to the storage root), or null for default. */
-    private fun customDir(): String? =
+    /** User-chosen save folder (relative to root, or absolute for SD card), or null for default. */
+    private fun savedDir(): String? =
         com.ownervortex.nyxrecorder.data.SettingsStore.saveDir
-            ?.takeIf { it.isNotBlank() && !it.startsWith("/") }
+            ?.takeIf { it.isNotBlank() }
+
+    private fun isAbsolute(dir: String): Boolean = dir.startsWith("/")
 
     /** Directory for direct File writes (used with All-files-access or API < 29). */
     fun directDir(): File {
         val base = Environment.getExternalStorageDirectory()
-        val rel = customDir() ?: ROOT_NAME
-        return File(base, rel).apply { mkdirs() }
+        val dir = savedDir()
+        val target = when {
+            dir == null -> File(base, ROOT_NAME)
+            isAbsolute(dir) -> File(dir) // SD-card absolute path
+            else -> File(base, dir)
+        }
+        return target.apply { mkdirs() }
     }
 
-    /** RELATIVE_PATH value used when writing via MediaStore (no all-files-access). */
-    fun relativePath(): String = customDir() ?: "Movies/$ROOT_NAME"
+    /**
+     * RELATIVE_PATH value used when writing via MediaStore (no all-files-access).
+     * MediaStore cannot target an arbitrary absolute/SD path, so those fall back
+     * to the default primary folder (SD-card saves require All files access).
+     */
+    fun relativePath(): String {
+        val dir = savedDir() ?: return "Movies/$ROOT_NAME"
+        return if (isAbsolute(dir)) "Movies/$ROOT_NAME" else dir
+    }
 
     fun newCaptureFile(): File {
         val dir = directDir()
