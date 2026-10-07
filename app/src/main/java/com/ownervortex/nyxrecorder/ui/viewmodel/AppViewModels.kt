@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 
 data class SettingsUi(
     val qualityPreset: Int = 1,
+    val frameRate: Int = 30,
     val recordMic: Boolean = false,
     val recordDeviceAudio: Boolean = false,
     val showBubble: Boolean = true,
@@ -45,6 +46,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun readStore() = SettingsUi(
         qualityPreset = SettingsStore.qualityPreset,
+        frameRate = SettingsStore.frameRate,
         recordMic = SettingsStore.recordMic,
         recordDeviceAudio = SettingsStore.recordDeviceAudio,
         showBubble = SettingsStore.showBubble,
@@ -61,6 +63,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setQuality(index: Int) {
         SettingsStore.qualityPreset = index
+        refresh()
+    }
+
+    fun setFrameRate(fps: Int) {
+        SettingsStore.frameRate = fps
         refresh()
     }
 

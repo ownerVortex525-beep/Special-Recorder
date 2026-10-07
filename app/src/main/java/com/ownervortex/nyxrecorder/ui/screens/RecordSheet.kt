@@ -120,6 +120,18 @@ fun RecordOptionsSheet(
             }
 
             Spacer(Modifier.height(12.dp))
+            SectionTitle("FRAME RATE")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(24, 30, 60).forEach { fps ->
+                    NixChip(
+                        label = "${fps} fps",
+                        selected = settings.frameRate == fps,
+                        onClick = { viewModel.setFrameRate(fps) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
             SectionTitle("AUDIO & VIDEO")
             OptionToggle(
                 title = "Microphone",

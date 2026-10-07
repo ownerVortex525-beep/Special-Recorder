@@ -482,8 +482,8 @@ private fun buildConfig(
 
     val w = ((width * scale).toInt() / 2 * 2).coerceAtLeast(2)
     val h = ((height * scale).toInt() / 2 * 2).coerceAtLeast(2)
-    val fps = 30
-    val bitRate = (w.toLong() * h * fps / 14).coerceIn(2_000_000L, 12_000_000L).toInt()
+    val fps = settings.frameRate.coerceIn(24, 60)
+    val bitRate = (w.toLong() * h * fps / 14).coerceIn(2_000_000L, 16_000_000L).toInt()
 
     return RecordingConfig(
         width = w,

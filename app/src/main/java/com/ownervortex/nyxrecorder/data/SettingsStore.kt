@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 object SettingsStore {
     private const val FILE = "nyx_settings"
     private const val KEY_QUALITY = "quality_preset"
+    private const val KEY_FRAME_RATE = "frame_rate"
     private const val KEY_MIC = "record_mic"
     private const val KEY_DEVICE_AUDIO = "record_device_audio"
     private const val KEY_BUBBLE = "show_bubble"
@@ -34,6 +35,13 @@ object SettingsStore {
     var qualityPreset: Int
         get() = prefs.getInt(KEY_QUALITY, 1)
         set(value) = prefs.edit().putInt(KEY_QUALITY, value).apply()
+
+    /** Target capture frame rate: one of 24, 30, 60. */
+    var frameRate: Int
+        get() = prefs.getInt(KEY_FRAME_RATE, 30).let { if (it in FPS_OPTIONS) it else 30 }
+        set(value) = prefs.edit().putInt(KEY_FRAME_RATE, value.coerceIn(24, 60)).apply()
+
+    val FPS_OPTIONS = intArrayOf(24, 30, 60)
 
     var recordMic: Boolean
         get() = prefs.getBoolean(KEY_MIC, false)

@@ -110,7 +110,7 @@ fun SettingsScreen(
                 Text("Quality", color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Cap resolution; frame rate stays at 30 fps",
+                    "Cap the capture resolution",
                     color = NixTextDim, fontSize = 12.sp
                 )
                 Spacer(Modifier.height(12.dp))
@@ -120,6 +120,23 @@ fun SettingsScreen(
                             label = label,
                             selected = state.qualityPreset == index,
                             onClick = { viewModel.setQuality(index) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("Frame rate", color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Higher fps = smoother motion, larger files",
+                    color = NixTextDim, fontSize = 12.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    listOf(24, 30, 60).forEach { fps ->
+                        NixChip(
+                            label = "${fps} fps",
+                            selected = state.frameRate == fps,
+                            onClick = { viewModel.setFrameRate(fps) }
                         )
                     }
                 }
