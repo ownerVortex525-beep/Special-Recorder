@@ -158,7 +158,7 @@ class AudioMixerEncoder(
             val format = MediaFormat.createAudioFormat(
                 MediaFormat.MIMETYPE_AUDIO_AAC, SAMPLE_RATE, CHANNELS
             ).apply {
-                setInteger(MediaFormat.KEY_BIT_RATE, 128_000)
+                setInteger(MediaFormat.KEY_BIT_RATE, if (musicUri != null) 320_000 else 192_000)
                 setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
                 setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, FRAME_BYTES * 4)
             }

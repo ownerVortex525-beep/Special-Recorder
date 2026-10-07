@@ -119,6 +119,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setMusicVolume(value: Float) {
         SettingsStore.musicVolume = value
+        previewPlayer?.volume = value.coerceIn(0f, 1f)
         refresh()
     }
 
@@ -251,25 +252,29 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Tap preview: a new track plays from 0:00, tapping the playing track
-     * toggles pause/resume.
+     * toggles pause/resume. Volume is mirrored from the global music volume so
+     * the preview matches the recorded level. Uses playWhenReady (instead of
+     * play() right after prepare()) because prepare() is async and play()
+     * before the player reaches READY silently no-ops / leaves it stuck.
      */
     fun togglePreview(track: MusicTrack) {
         val player = previewPlayer ?: androidx.media3.exoplayer.ExoPlayer
             .Builder(getApplication())
             .build()
             .also { previewPlayer = it }
+        player.volume = SettingsStore.musicVolume.coerceIn(0f, 1f)
         if (_previewUri.value == track.uri) {
             if (_previewPlaying.value) {
                 player.pause()
                 _previewPlaying.value = false
             } else {
-                player.play()
+                player.playWhenReady = true
                 _previewPlaying.value = true
             }
         } else {
             player.setMediaItem(androidx.media3.common.MediaItem.fromUri(track.uri))
             player.prepare()
-            player.play()
+            player.playWhenReady = true
             _previewUri.value = track.uri
             _previewPlaying.value = true
         }
@@ -279,8 +284,10 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     fun stopPreview() {
         try {
             previewPlayer?.stop()
+            previewPlayer?.release()
         } catch (_: Exception) {
         }
+        previewPlayer = null
         _previewUri.value = null
         _previewPlaying.value = false
     }
