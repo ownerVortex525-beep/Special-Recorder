@@ -53,6 +53,21 @@
             android:text="Hide"
             android:textColor="@android:color/white"
             android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/panelFaceCam"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_chip"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:text="FaceCam"
+            android:textColor="@android:color/white"
+            android:textSize="13sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout

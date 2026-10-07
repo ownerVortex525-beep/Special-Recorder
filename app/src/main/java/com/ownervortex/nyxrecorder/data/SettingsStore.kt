@@ -13,6 +13,7 @@ object SettingsStore {
     private const val KEY_BUBBLE_OPACITY = "bubble_opacity"
     private const val KEY_COUNTDOWN = "countdown"
     private const val KEY_FACE_CAM = "face_cam"
+    private const val KEY_FACE_CAM_ROUND = "face_cam_round"
     private const val KEY_TOUCH = "touch_indicator"
     private const val KEY_MUSIC_VOLUME = "music_volume"
     private const val KEY_MUSIC_URI = "music_uri"
@@ -20,6 +21,7 @@ object SettingsStore {
     private const val KEY_FAVORITES = "favorites"
     private const val KEY_FIRST_RUN = "first_run"
     private const val KEY_THEME = "theme_index"
+    private const val KEY_HOME_LABEL = "home_label"
 
     private lateinit var prefs: SharedPreferences
 
@@ -62,6 +64,16 @@ object SettingsStore {
     var faceCam: Boolean
         get() = prefs.getBoolean(KEY_FACE_CAM, false)
         set(value) = prefs.edit().putBoolean(KEY_FACE_CAM, value).apply()
+
+    /** FaceCam shape: true = circle, false = rounded square. */
+    var faceCamRound: Boolean
+        get() = prefs.getBoolean(KEY_FACE_CAM_ROUND, true)
+        set(value) = prefs.edit().putBoolean(KEY_FACE_CAM_ROUND, value).apply()
+
+    /** Custom home-screen watermark label; null/blank falls back to default. */
+    var homeLabel: String?
+        get() = prefs.getString(KEY_HOME_LABEL, null)
+        set(value) = prefs.edit().putString(KEY_HOME_LABEL, value).apply()
 
     var touchIndicator: Boolean
         get() = prefs.getBoolean(KEY_TOUCH, false)

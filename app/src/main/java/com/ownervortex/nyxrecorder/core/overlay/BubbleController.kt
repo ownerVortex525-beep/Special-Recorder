@@ -241,6 +241,15 @@ class BubbleController(
             removePanel()
             onHide?.invoke()
         }
+        if (faceCamEnabled) {
+            val faceCamBtn = panel.findViewById<TextView>(R.id.panelFaceCam)
+            faceCamBtn?.visibility = View.VISIBLE
+            faceCamBtn?.text = if (faceCamView != null) "Hide Cam" else "Show Cam"
+            faceCamBtn?.setOnClickListener {
+                toggleFaceCamView()
+                removePanel()
+            }
+        }
         updatePauseLabel(pauseBtn)
 
         val bp = bubbleParams ?: return
@@ -391,6 +400,7 @@ class BubbleController(
     private fun showFaceCam() {
         try {
             if (!Settings.canDrawOverlays(context)) return
+            if (faceCamView != null) return
             val cameraManager =
                 context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
             val lens = cameraManager.cameraIdList.firstOrNull { id ->
@@ -401,6 +411,7 @@ class BubbleController(
             val size = 140.dp()
             val view = FaceCamView(context, lens, cameraManager)
             faceCamView = view
+            view.setRound(SettingsStore.faceCamRound)
             val params = overlayParams(size, size).apply {
                 gravity = Gravity.TOP or Gravity.END
                 x = 8.dp()
@@ -410,10 +421,82 @@ class BubbleController(
                 flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
             }
+            attachFaceCamTouch(view, params)
             windowManager.addView(view, params)
             view.applyOutline()
         } catch (_: Exception) {
             faceCamView = null
+        }
+    }
+
+    /** Drag to reposition anywhere; a tap (without dragging) hides the face cam. */
+    private fun attachFaceCamTouch(
+        view: FaceCamView,
+        params: WindowManager.LayoutParams
+    ) {
+        val screenW = context.resources.displayMetrics.widthPixels
+        val screenH = context.resources.displayMetrics.heightPixels
+        var downX = 0f
+        var downY = 0f
+        var startX = 0
+        var startY = 0
+        var dragging = false
+
+        view.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    startX = params.x
+                    startY = params.y
+                    dragging = false
+                    v.performClick()
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+                    if (!dragging && (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8)) {
+                        dragging = true
+                    }
+                    if (dragging) {
+                        val maxX = (screenW - params.width).coerceAtLeast(0)
+                        val maxY = (screenH - params.height).coerceAtLeast(0)
+                        params.x = (startX + dx.toInt()).coerceIn(0, maxX)
+                        params.y = (startY + dy.toInt()).coerceIn(0, maxY)
+                        try {
+                            windowManager.updateViewLayout(view, params)
+                        } catch (_: Exception) {
+                        }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!dragging) hideFaceCamView()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    /** Hides only the face-cam window (keeps the bubble controls alive). */
+    private fun hideFaceCamView() {
+        faceCamView?.let {
+            try {
+                it.releaseCamera()
+                windowManager.removeView(it)
+            } catch (_: Exception) {
+            }
+        }
+        faceCamView = null
+    }
+
+    /** Panel toggle: show the face-cam again if it was hidden, otherwise hide it. */
+    fun toggleFaceCamView() {
+        postToMain {
+            if (faceCamView != null) hideFaceCamView()
+            else if (faceCamEnabled) showFaceCam()
         }
     }
 
@@ -488,8 +571,15 @@ class FaceCamView(
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         addView(this)
     }
-    private val cornerRadius = 24f // dp
+    private var cornerRadius = 24f // dp
     private var openRequest = false
+
+    /** Applies the requested shape: a full circle or a softly rounded square. */
+    fun setRound(round: Boolean) {
+        // The face-cam window is 140dp; a circle needs a 70dp radius.
+        cornerRadius = if (round) 70f else 24f
+        applyOutline()
+    }
 
     init {
         setBackgroundColor(0xFF000000.toInt())
