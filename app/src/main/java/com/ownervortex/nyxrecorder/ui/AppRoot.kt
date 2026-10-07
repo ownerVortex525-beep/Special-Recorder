@@ -11,6 +11,14 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -305,11 +313,36 @@ fun AppRoot() {
                 }
             }
         ) { padding ->
-            Box(Modifier.padding(padding)) {
+            Box(Modifier.fillMaxSize().padding(padding)) {
                 val editor = editorTarget
                 val player = playerTarget
+                val screenKey = when {
+                    editor != null -> "editor"
+                    player != null -> "player"
+                    else -> "tab$tab"
+                }
+                AnimatedContent(
+                    targetState = screenKey,
+                    transitionSpec = {
+                        val bothTabs = initialState.startsWith("tab") &&
+                            targetState.startsWith("tab")
+                        if (bothTabs) {
+                            if (targetState > initialState) {
+                                slideInHorizontally { it } + fadeIn(tween(260)) togetherWith
+                                    slideOutHorizontally { -it } + fadeOut(tween(180))
+                            } else {
+                                slideInHorizontally { -it } + fadeIn(tween(260)) togetherWith
+                                    slideOutHorizontally { it } + fadeOut(tween(180))
+                            }
+                        } else {
+                            fadeIn(tween(240)) togetherWith fadeOut(tween(200))
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    label = "screen"
+                ) { key ->
                 when {
-                    editor != null -> {
+                    key == "editor" && editor != null -> {
                         EditorScreen(
                             recording = editor,
                             viewModel = editorViewModel,
@@ -327,7 +360,7 @@ fun AppRoot() {
                             }
                         )
                     }
-                    player != null -> {
+                    key == "player" && player != null -> {
                         PlayerScreen(
                             recording = player,
                             onBack = { playerTarget = null },
@@ -355,7 +388,7 @@ fun AppRoot() {
                             }
                         )
                     }
-                    tab == 0 -> {
+                    key == "tab0" -> {
                         HomeScreen(
                             status = status,
                             qualityLabel = qualityLabelFor(settings.qualityPreset),
@@ -372,7 +405,7 @@ fun AppRoot() {
                             countdownValue = countdown
                         )
                     }
-                    tab == 1 -> {
+                    key == "tab1" -> {
                         val items = (libraryState as? LibraryState.Loaded)?.items ?: emptyList()
                         LibraryScreen(
                             items = items,
@@ -392,7 +425,7 @@ fun AppRoot() {
                             onFavorite = { libraryViewModel.toggleFavorite(it) }
                         )
                     }
-                    tab == 2 -> {
+                    key == "tab2" -> {
                         MusicScreen(
                             musicViewModel = musicViewModel,
                             settingsViewModel = settingsViewModel
@@ -416,6 +449,7 @@ fun AppRoot() {
                             }
                         )
                     }
+                }
                 }
             }
         }
