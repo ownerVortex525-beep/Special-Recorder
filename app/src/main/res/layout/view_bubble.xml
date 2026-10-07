@@ -8,10 +8,13 @@
 
     <ImageView
         android:id="@+id/bubbleIcon"
-        android:layout_width="42dp"
-        android:layout_height="42dp"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
         android:contentDescription="NYX-RECORDER"
         android:gravity="center"
+        android:scaleType="centerCrop"
+        android:background="@drawable/bg_icon_circle"
+        android:clipToOutline="true"
         android:src="@drawable/ic_launcher_foreground" />
 
     <TextView
