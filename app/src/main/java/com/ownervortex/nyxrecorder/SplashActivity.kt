@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -77,8 +79,10 @@ private val TAGLINES = listOf(
 private fun SplashContent() {
     var index by remember { mutableIntStateOf(0) }
     var visible by remember { mutableStateOf(false) }
+    var entered by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        entered = true
         for (i in TAGLINES.indices) {
             index = i
             visible = true
@@ -93,6 +97,25 @@ private fun SplashContent() {
         animationSpec = tween(240),
         label = "tagline"
     )
+    val taglineOffset by animateFloatAsState(
+        targetValue = if (visible) 0f else 12f,
+        animationSpec = tween(240),
+        label = "taglineOffset"
+    )
+
+    // Staggered entrance: logo scales/fades in, then the titles slide up.
+    val logoAlpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f, animationSpec = tween(600), label = "logoAlpha"
+    )
+    val logoScale by animateFloatAsState(
+        targetValue = if (entered) 1f else 0.72f, animationSpec = tween(650), label = "logoScale"
+    )
+    val titleAlpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f, animationSpec = tween(700), label = "titleAlpha"
+    )
+    val titleOffset by animateFloatAsState(
+        targetValue = if (entered) 0f else 36f, animationSpec = tween(700), label = "titleOffset"
+    )
 
     Column(
         Modifier
@@ -106,6 +129,8 @@ private fun SplashContent() {
             contentDescription = null,
             modifier = Modifier
                 .size(116.dp)
+                .scale(logoScale)
+                .alpha(logoAlpha)
                 .clip(RoundedCornerShape(26.dp))
         )
         Spacer(Modifier.height(16.dp))
@@ -114,7 +139,10 @@ private fun SplashContent() {
             color = Color(0xFF00D9A6),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp
+            letterSpacing = 2.sp,
+            modifier = Modifier
+                .alpha(titleAlpha)
+                .offset(y = titleOffset.dp)
         )
         Spacer(Modifier.height(4.dp))
         Text(
@@ -122,7 +150,10 @@ private fun SplashContent() {
             color = Color(0xFFF2F2F7),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 4.sp
+            letterSpacing = 4.sp,
+            modifier = Modifier
+                .alpha(titleAlpha)
+                .offset(y = titleOffset.dp)
         )
         Spacer(Modifier.height(30.dp))
         // Fixed-height slot so taglines fade in place without layout jumps.
@@ -137,7 +168,9 @@ private fun SplashContent() {
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 1.sp,
-                modifier = Modifier.alpha(taglineAlpha)
+                modifier = Modifier
+                    .alpha(taglineAlpha)
+                    .offset(y = taglineOffset.dp)
             )
         }
     }
