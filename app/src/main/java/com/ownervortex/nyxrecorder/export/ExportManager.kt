@@ -37,7 +37,12 @@ enum class EditFilter(val label: String) {
     WARM("Warm"),
     COOL("Cool"),
     VIVID("Vivid"),
-    DARK("Dark")
+    DARK("Dark"),
+    SEPIA("Sepia"),
+    FADE("Fade"),
+    BRIGHT("Bright"),
+    PUNCH("Punch"),
+    VINTAGE("Vintage")
 }
 
 data class ExportRequest(
@@ -110,6 +115,16 @@ fun buildVideoEffects(
             .adjustSaturation(0.35f).build()
         EditFilter.DARK -> effects += HslAdjustment.Builder()
             .adjustLightness(-0.2f).build()
+        EditFilter.SEPIA -> effects += HslAdjustment.Builder()
+            .adjustSaturation(-0.45f).adjustHue(8f).adjustLightness(0.05f).build()
+        EditFilter.FADE -> effects += HslAdjustment.Builder()
+            .adjustSaturation(-0.25f).adjustLightness(0.08f).build()
+        EditFilter.BRIGHT -> effects += HslAdjustment.Builder()
+            .adjustLightness(0.18f).adjustSaturation(0.1f).build()
+        EditFilter.PUNCH -> effects += HslAdjustment.Builder()
+            .adjustSaturation(0.35f).adjustLightness(-0.05f).build()
+        EditFilter.VINTAGE -> effects += HslAdjustment.Builder()
+            .adjustSaturation(-0.3f).adjustHue(10f).adjustLightness(0.04f).build()
         EditFilter.NONE -> Unit
     }
 
