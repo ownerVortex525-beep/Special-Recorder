@@ -512,7 +512,15 @@ fun SettingsScreen(
     }
 
     if (showCrashLog && crashReport != null) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showCrashLog = false }) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = {
+                // Copy the *full* (untruncated) log at once, then dismiss.
+                com.ownervortex.nyxrecorder.core.util.CrashLog.read(context)?.let {
+                    com.ownervortex.nyxrecorder.core.util.copyToClipboard(context, "NYX crash log", it)
+                }
+                showCrashLog = false
+            }
+        ) {
             NixCard(
                 Modifier
                     .fillMaxWidth()
@@ -535,8 +543,30 @@ fun SettingsScreen(
                             .verticalScroll(rememberScrollState())
                     )
                     Spacer(Modifier.height(12.dp))
-                    TextButton(onClick = { showCrashLog = false }) {
-                        Text("Close", color = NixPrimary, fontWeight = FontWeight.Bold)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        TextButton(onClick = {
+                            com.ownervortex.nyxrecorder.core.util.CrashLog.read(context)?.let {
+                                com.ownervortex.nyxrecorder.core.util.copyToClipboard(
+                                    context, "NYX crash log", it
+                                )
+                            }
+                        }) {
+                            Text(
+                                "Copy",
+                                color = NixAccent,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        TextButton(onClick = {
+                            // Copy is automatic on dismiss; just close here.
+                            showCrashLog = false
+                        }) {
+                            Text("Close", color = NixPrimary, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
