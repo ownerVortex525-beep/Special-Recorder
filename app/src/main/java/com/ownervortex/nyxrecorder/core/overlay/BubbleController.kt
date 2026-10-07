@@ -16,7 +16,9 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.WindowManager
+import android.view.animation.FastOutSlowInInterpolator
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.ownervortex.nyxrecorder.R
@@ -182,6 +184,22 @@ class BubbleController(
             windowManager.updateViewLayout(view, params)
         } catch (_: Exception) {
         }
+        // Bounce the bubble to its snapped position for a crisp release feel.
+        view.animate()
+            .scaleX(1.08f)
+            .scaleY(1.08f)
+            .setDuration(180)
+            .setInterpolator(ROUNDED_INTERPOLATOR)
+            .withEndAction {
+                view.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(160)
+                    .setInterpolator(ROUNDED_INTERPOLATOR)
+                    .withEndAction { setDim(true) }
+                    .start()
+            }
+            .start()
     }
 
     @SuppressLint("InflateParams")
@@ -247,6 +265,32 @@ class BubbleController(
             panelOpen = false
             return
         }
+
+        // Animate the panel sliding + fading in, and pop the bubble icon open.
+        panel.alpha = 0f
+        panel.translationY = 48f
+        panel.animate()
+            .alpha(FULL_ALPHA)
+            .translationY(0f)
+            .setDuration(300)
+            .setInterpolator(ROUNDED_INTERPOLATOR)
+            .start()
+        bubbleView?.findViewById<ImageView>(R.id.bubbleIcon)?.let { icon ->
+            icon.animate()
+                .scaleX(1.12f)
+                .scaleY(1.12f)
+                .setDuration(220)
+                .setInterpolator(ROUNDED_INTERPOLATOR)
+                .withEndAction {
+                    icon.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(160)
+                        .setInterpolator(ROUNDED_INTERPOLATOR)
+                        .start()
+                }
+                .start()
+        }
     }
 
     private fun ViewGroupLayoutParams(view: View): Int {
@@ -258,14 +302,26 @@ class BubbleController(
     }
 
     private fun removePanel() {
-        panelOpen = false
-        panelView?.let {
-            try {
-                windowManager.removeView(it)
-            } catch (_: Exception) {
-            }
+        val panel = panelView ?: run {
+            panelOpen = false
+            setDim(true)
+            return
         }
+        panelOpen = false
         panelView = null
+        // Slide + fade the panel out, then actually remove it from the window.
+        panel.animate()
+            .alpha(0f)
+            .translationY(48f)
+            .setDuration(260)
+            .setInterpolator(ROUNDED_INTERPOLATOR)
+            .withEndAction {
+                try {
+                    windowManager.removeView(panel)
+                } catch (_: Exception) {
+                }
+            }
+            .start()
         setDim(true)
     }
 
@@ -301,11 +357,17 @@ class BubbleController(
     }
 
     private fun setDim(dimmed: Boolean) {
-        bubbleParams?.let { p ->
-            val target = if (dimmed) dimmedAlpha else FULL_ALPHA
-            if (p.alpha != target) {
-                p.alpha = target
-                bubbleView?.let { windowManager.updateViewLayout(it, p) }
+        val target = if (dimmed) dimmedAlpha else FULL_ALPHA
+        val pv = bubbleParams
+        if (pv != null && pv.alpha != target) {
+            pv.alpha = target
+            bubbleView?.let { bv ->
+                // Smooth fade so the bubble never pops on screen.
+                bv.animate()
+                    .alpha(target)
+                    .setDuration(320)
+                    .setInterpolator(ROUNDED_INTERPOLATOR)
+                    .start()
             }
         }
     }
@@ -404,6 +466,8 @@ class BubbleController(
 
     companion object {
         const val FULL_ALPHA = 1.0f
+        @JvmField
+        val ROUNDED_INTERPOLATOR = FastOutSlowInInterpolator()
     }
 }
 

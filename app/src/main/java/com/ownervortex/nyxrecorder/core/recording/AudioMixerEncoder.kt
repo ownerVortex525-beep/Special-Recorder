@@ -95,7 +95,7 @@ class AudioMixerEncoder(
             speakerTrack?.pause()
         } else {
             speakerTrack?.let {
-                if (it.playState == AudioTrack.PLAYSTATE_PAUSED) it.resume()
+                if (it.playState != AudioTrack.PLAYSTATE_PLAYING) it.play()
             }
         }
     }
@@ -210,7 +210,7 @@ class AudioMixerEncoder(
         val old = paused
         paused = value
         if (old != value) {
-            if (value) speakerTrack?.pause() else speakerTrack?.resume()
+            if (value) speakerTrack?.pause() else speakerTrack?.play()
         }
     }
 

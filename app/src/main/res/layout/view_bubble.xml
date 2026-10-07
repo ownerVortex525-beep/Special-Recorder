@@ -8,9 +8,10 @@
 
     <ImageView
         android:id="@+id/bubbleIcon"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
         android:contentDescription="NYX-RECORDER"
+        android:gravity="center"
         android:src="@drawable/ic_launcher_foreground" />
 
     <TextView
