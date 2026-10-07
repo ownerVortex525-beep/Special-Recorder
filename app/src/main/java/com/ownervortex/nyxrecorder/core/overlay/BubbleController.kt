@@ -16,7 +16,7 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.WindowManager
-import android.view.animation.FastOutSlowInInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -467,7 +467,7 @@ class BubbleController(
     companion object {
         const val FULL_ALPHA = 1.0f
         @JvmField
-        val ROUNDED_INTERPOLATOR = FastOutSlowInInterpolator()
+        val ROUNDED_INTERPOLATOR = AccelerateDecelerateInterpolator()
     }
 }
 
