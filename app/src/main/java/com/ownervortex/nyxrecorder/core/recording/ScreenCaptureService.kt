@@ -213,8 +213,11 @@ class ScreenCaptureService : Service() {
             failStart()
             return
         }
-        videoEncoder?.start()
 
+        // Create the virtual display that feeds the encoder's input surface
+        // BEFORE starting the encoder — otherwise the encoder's first output
+        // frame can be black/empty (it starts draining before any pixels are
+        // written, which corrupts the very first frames of the recording).
         virtualDisplay = proj.createVirtualDisplay(
             "NYX-Recorder",
             cfg.width, cfg.height, cfg.densityDpi,
@@ -225,6 +228,7 @@ class ScreenCaptureService : Service() {
             failStart()
             return
         }
+        videoEncoder?.start()
 
         audioEncoder?.setPaused(false)
         audioEncoder?.start()
@@ -411,7 +415,7 @@ class ScreenCaptureService : Service() {
                 buf.limit(info.offset + info.size)
                 buf.get(data)
                 pendingVideo.add(PendingSample(data, 0, info.size, rawPts, info.flags))
-                if (pendingVideo.size > 240) pendingVideo.removeAt(0)
+                if (pendingVideo.size > 60) pendingVideo.removeAt(0)
                 return
             }
             flushVideoPendingLocked()
@@ -477,7 +481,7 @@ class ScreenCaptureService : Service() {
                     startMuxerLocked()
                 }
             }
-        }, 1500)
+        }, 800)
     }
 
     // ------------------------------------------------------------------ pause

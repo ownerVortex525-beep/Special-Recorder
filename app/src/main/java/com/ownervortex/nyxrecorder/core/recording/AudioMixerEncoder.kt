@@ -139,7 +139,8 @@ class AudioMixerEncoder(
             null
         }
         if (track?.state == AudioTrack.STATE_INITIALIZED) {
-            track.setStereoVolume(musicVolume.coerceIn(0f, 1f))
+            val v = musicVolume.coerceIn(0f, 1f)
+            track.setStereoVolume(v, v)
             track.play()
             speakerTrack = track
             return track
