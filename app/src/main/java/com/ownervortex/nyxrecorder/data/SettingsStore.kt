@@ -23,6 +23,7 @@ object SettingsStore {
     private const val KEY_FIRST_RUN = "first_run"
     private const val KEY_THEME = "theme_index"
     private const val KEY_HOME_LABEL = "home_label"
+    private const val KEY_SAVE_DIR = "save_dir"
 
     private lateinit var prefs: SharedPreferences
 
@@ -82,6 +83,14 @@ object SettingsStore {
     var homeLabel: String?
         get() = prefs.getString(KEY_HOME_LABEL, null)
         set(value) = prefs.edit().putString(KEY_HOME_LABEL, value).apply()
+
+    /**
+     * Custom save folder, relative to the shared-storage root (e.g. "MyClips").
+     * Null/blank falls back to the default "NYX Recorder" folder.
+     */
+    var saveDir: String?
+        get() = prefs.getString(KEY_SAVE_DIR, null)
+        set(value) = prefs.edit().putString(KEY_SAVE_DIR, value).apply()
 
     var touchIndicator: Boolean
         get() = prefs.getBoolean(KEY_TOUCH, false)

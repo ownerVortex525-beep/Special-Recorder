@@ -46,6 +46,7 @@ import com.ownervortex.nyxrecorder.ui.components.SectionTitle
 import com.ownervortex.nyxrecorder.ui.components.SettingRow
 import com.ownervortex.nyxrecorder.ui.theme.NixAccent
 import com.ownervortex.nyxrecorder.ui.theme.NixPrimary
+import com.ownervortex.nyxrecorder.ui.theme.NixRed
 import com.ownervortex.nyxrecorder.ui.theme.NixStroke
 import com.ownervortex.nyxrecorder.ui.theme.NixSurfaceHigh
 import com.ownervortex.nyxrecorder.ui.theme.NixText
@@ -78,6 +79,23 @@ fun SettingsScreen(
     val permLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
     ) { permTick++ }
+
+    var saveDirPath by remember { mutableStateOf(com.ownervortex.nyxrecorder.data.SettingsStore.saveDir) }
+    var saveDirError by remember { mutableStateOf<String?>(null) }
+    val folderLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            val rel = primaryRelativePath(uri)
+            if (rel != null) {
+                com.ownervortex.nyxrecorder.data.SettingsStore.saveDir = rel
+                saveDirPath = rel
+                saveDirError = null
+            } else {
+                saveDirError = "Please pick a folder on internal storage"
+            }
+        }
+    }
 
     fun granted(permission: String): Boolean =
         androidx.core.content.ContextCompat.checkSelfPermission(context, permission) ==
@@ -519,6 +537,31 @@ fun SettingsScreen(
                         }
                     }
                 }
+                SettingRow(
+                    "Save folder",
+                    subtitle = saveDirPath?.let { "/storage/emulated/0/$it" }
+                        ?: "/storage/emulated/0/NYX Recorder (default)"
+                ) {
+                    TextButton(onClick = { folderLauncher.launch(null) }) {
+                        Text("Change", color = NixPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    if (saveDirPath != null) {
+                        TextButton(onClick = {
+                            com.ownervortex.nyxrecorder.data.SettingsStore.saveDir = null
+                            saveDirPath = null
+                        }) {
+                            Text("Default", color = NixTextDim, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                if (saveDirError != null) {
+                    Text(
+                        saveDirError ?: "",
+                        color = NixRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                    )
+                }
             }
         }
 
@@ -664,3 +707,19 @@ private data class PermissionRow(
     val action: () -> Unit,
     val grantLabel: String = "Grant"
 )
+
+/**
+ * Derives a storage-root-relative folder path from a SAF tree Uri, but only for
+ * the primary internal volume (SD-card trees are not portable across save modes).
+ */
+private fun primaryRelativePath(uri: android.net.Uri): String? = try {
+    val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
+    val parts = docId.split(":")
+    if (parts.size >= 2 && parts[0].equals("primary", ignoreCase = true)) {
+        parts[1].trim().trimEnd('/').ifEmpty { null }
+    } else {
+        null
+    }
+} catch (_: Exception) {
+    null
+}

@@ -20,14 +20,20 @@ object StoragePaths {
         Build.VERSION.SDK_INT >= 30 &&
             Environment.isExternalStorageManager()
 
+    /** User-chosen save folder (relative to the storage root), or null for default. */
+    private fun customDir(): String? =
+        com.ownervortex.nyxrecorder.data.SettingsStore.saveDir
+            ?.takeIf { it.isNotBlank() && !it.startsWith("/") }
+
     /** Directory for direct File writes (used with All-files-access or API < 29). */
     fun directDir(): File {
         val base = Environment.getExternalStorageDirectory()
-        return File(base, ROOT_NAME).apply { mkdirs() }
+        val rel = customDir() ?: ROOT_NAME
+        return File(base, rel).apply { mkdirs() }
     }
 
     /** RELATIVE_PATH value used when writing via MediaStore (no all-files-access). */
-    fun relativePath(): String = "Movies/$ROOT_NAME"
+    fun relativePath(): String = customDir() ?: "Movies/$ROOT_NAME"
 
     fun newCaptureFile(): File {
         val dir = directDir()
