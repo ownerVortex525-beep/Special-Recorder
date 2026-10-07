@@ -5,8 +5,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioPlaybackCaptureConfiguration
 import android.media.AudioRecord
+import android.media.AudioTrack
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaExtractor
@@ -73,6 +75,12 @@ class AudioMixerEncoder(
     /** True while a music source was selected for this recording. */
     val hasMusic: Boolean get() = musicUri != null
 
+    // Optional mirror of the music track to the device speakers while recording.
+    private var speakerTrack: AudioTrack? = null
+    /** True decoder output rate/channels (set once when INFO_OUTPUT_FORMAT_CHANGED arrives). */
+    private var decoderOutRate = 0
+    private var decoderOutChannels = 0
+
     fun isMusicPaused(): Boolean = musicPaused
 
     /** True while music playback is still active (false once stopped for good). */
@@ -82,7 +90,14 @@ class AudioMixerEncoder(
     fun toggleMusicPause() {
         if (musicStopped) return
         musicPaused = !musicPaused
-        if (musicPaused) musicQueue?.clear()
+        if (musicPaused) {
+            musicQueue?.clear()
+            speakerTrack?.pause()
+        } else {
+            speakerTrack?.let {
+                if (it.playState == AudioTrack.PLAYSTATE_PAUSED) it.resume()
+            }
+        }
     }
 
     /** Stop the background music for the rest of the recording. */
@@ -90,11 +105,47 @@ class AudioMixerEncoder(
         musicStopped = true
         musicPaused = false
         musicQueue?.clear()
+        speakerTrack?.pause()
     }
 
     /** Seek the background music forward by 10 seconds (loops if past the end). */
     fun forwardMusic() {
         musicForwardReq = true
+    }
+
+    /** Lazily creates the speaker playback track (created once, on first use). */
+    private fun ensureSpeaker(): AudioTrack? {
+        val existing = speakerTrack
+        if (existing != null) return existing
+        if (musicVolume <= 0f) return null
+        val track = try {
+            val af = AudioFormat.Builder()
+                .setEncoding(ENCODING)
+                .setSampleRate(SAMPLE_RATE)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                .build()
+            AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(af)
+                .setBufferSizeInBytes(FRAME_BYTES * 8)
+                .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_NONE)
+                .build()
+        } catch (_: Throwable) {
+            null
+        }
+        if (track?.state == AudioTrack.STATE_INITIALIZED) {
+            track.setStereoVolume(musicVolume.coerceIn(0f, 1f))
+            track.play()
+            speakerTrack = track
+            return track
+        }
+        track?.release()
+        return null
     }
 
     val isPaused: Boolean
@@ -155,7 +206,11 @@ class AudioMixerEncoder(
     }
 
     fun setPaused(value: Boolean) {
+        val old = paused
         paused = value
+        if (old != value) {
+            if (value) speakerTrack?.pause() else speakerTrack?.resume()
+        }
     }
 
     /** Stops threads, flushes the encoder and releases everything. Synchronous. */
@@ -173,7 +228,17 @@ class AudioMixerEncoder(
             }
         }
         finishEncoder()
+        releaseSpeaker()
         releaseSources()
+    }
+
+    private fun releaseSpeaker() {
+        try {
+            speakerTrack?.stop()
+            speakerTrack?.release()
+        } catch (_: Exception) {
+        }
+        speakerTrack = null
     }
 
     private var activeThreads = 0
@@ -412,6 +477,20 @@ class AudioMixerEncoder(
                 }
 
                 val outIdx = dec.dequeueOutputBuffer(info, 20_000)
+                if (outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    try {
+                        val of = dec.outputFormat
+                        if (of.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+                            val r = of.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                            if (r > 0) decoderOutRate = r
+                        }
+                        if (of.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                            val c = of.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                            if (c > 0) decoderOutChannels = c
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
                 if (outIdx >= 0) {
                     try {
                         val outBuf = dec.getOutputBuffer(outIdx)
@@ -420,7 +499,11 @@ class AudioMixerEncoder(
                             outBuf.limit(info.offset + info.size)
                             val pcm = ByteArray(info.size)
                             outBuf.get(pcm)
-                            val resampled = resample(pcm, srcRate, srcChannels)
+                            val resampled = resample(
+                                pcm,
+                                if (decoderOutRate > 0) decoderOutRate else srcRate,
+                                if (decoderOutChannels > 0) decoderOutChannels else srcChannels
+                            )
                             if (accLen + resampled.size > acc.size) {
                                 acc = acc.copyOf(maxOf(acc.size * 2, accLen + resampled.size))
                             }
@@ -430,6 +513,12 @@ class AudioMixerEncoder(
                                 val frame = acc.copyOfRange(0, FRAME_BYTES)
                                 aborted = !putMusicFrame(queue, frame)
                                 if (!aborted) {
+                                    // Mirror to the device speakers so the user
+                                    // hears the music while recording (muted when
+                                    // the recorder or the music is paused).
+                                    if (!paused && !musicPaused) {
+                                        ensureSpeaker()?.write(frame, 0, FRAME_BYTES)
+                                    }
                                     System.arraycopy(
                                         acc, FRAME_BYTES, acc, 0, accLen - FRAME_BYTES
                                     )
