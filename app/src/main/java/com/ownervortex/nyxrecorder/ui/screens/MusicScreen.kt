@@ -176,7 +176,6 @@ fun MusicScreen(
                                 RoundedCornerShape(14.dp)
                             )
                             .clickable {
-                                if (!isSelected) musicViewModel.select(track)
                                 musicViewModel.togglePreview(track)
                             }
                             .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -222,17 +221,39 @@ fun MusicScreen(
                                 maxLines = 1
                             )
                         }
-                        when {
-                            isPreviewing -> Icon(
+                        if (isPreviewing) {
+                            Icon(
                                 if (previewPlaying) Icons.Filled.Pause
                                 else Icons.Filled.PlayArrow,
                                 contentDescription = "Preview",
-                                tint = NixAccent
+                                tint = NixAccent,
+                                modifier = Modifier.size(20.dp)
                             )
-                            isSelected -> Icon(
-                                Icons.Filled.CheckCircle, "Selected", tint = NixPrimary
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        if (isSelected) {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = "Selected",
+                                tint = NixPrimary,
+                                modifier = Modifier.size(22.dp)
                             )
-                            else -> Spacer(Modifier.width(24.dp))
+                        } else {
+                            Box(
+                                Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(NixPrimary.copy(alpha = 0.16f))
+                                    .border(1.dp, NixPrimary, RoundedCornerShape(10.dp))
+                                    .clickable { musicViewModel.select(track) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    "Select",
+                                    color = NixPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }

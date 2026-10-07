@@ -21,6 +21,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -275,6 +277,47 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+        SectionTitle("BRANDING")
+        NixCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    "Home watermark",
+                    color = NixText, fontSize = 15.sp, fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Shown in the corner of the Home tab — make it yours",
+                    color = NixTextDim, fontSize = 12.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                var homeLabel by remember {
+                    mutableStateOf(
+                        com.ownervortex.nyxrecorder.data.SettingsStore.homeLabel
+                            ?.takeIf { it.isNotBlank() } ?: "NYX-RECORDER"
+                    )
+                }
+                TextField(
+                    value = homeLabel,
+                    onValueChange = {
+                        homeLabel = it
+                        com.ownervortex.nyxrecorder.data.SettingsStore.homeLabel = it
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = NixText,
+                        unfocusedTextColor = NixText,
+                        focusedContainerColor = NixSurfaceHigh,
+                        unfocusedContainerColor = NixSurfaceHigh,
+                        focusedIndicatorColor = NixPrimary,
+                        unfocusedIndicatorColor = NixStroke,
+                        cursorColor = NixPrimary
+                    )
+                )
             }
         }
 

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +75,23 @@ fun HomeScreen(
             .padding(horizontal = 20.dp)
     ) {
         Spacer(Modifier.height(12.dp))
+        val homeWatermark = remember {
+            com.ownervortex.nyxrecorder.data.SettingsStore.homeLabel
+                ?.takeIf { it.isNotBlank() } ?: "NYX-RECORDER"
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Text(
+                homeWatermark,
+                color = NixTextDim.copy(alpha = 0.65f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+        }
+        Spacer(Modifier.height(4.dp))
         AccentBar()
         Spacer(Modifier.height(20.dp))
 
